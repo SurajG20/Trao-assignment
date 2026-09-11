@@ -14,10 +14,22 @@ export class LlmError extends Error {
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
-async function postChat(messages: ChatMessage[], attempt: number): Promise<string> {
+async function postChat(
+  messages: ChatMessage[],
+  attempt: number,
+  useJsonMode = true,
+): Promise<string> {
   const apiKey = process.env.OPENROUTER_API_KEY || env.openRouterApiKey;
   if (!apiKey) {
     throw new LlmError("OPENROUTER_API_KEY is not set", "LLM_UNCONFIGURED");
+  }
+  const body: Record<string, unknown> = {
+    model: process.env.OPENROUTER_MODEL || env.openRouterModel,
+    temperature: 0.2,
+    messages,
+  };
+  if (useJsonMode) {
+    body.response_format = { type: "json_object" };
   }
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -27,12 +39,7 @@ async function postChat(messages: ChatMessage[], attempt: number): Promise<strin
       "HTTP-Referer": env.openRouterReferer,
       "X-Title": "Trao Interview Prep Kit",
     },
-    body: JSON.stringify({
-      model: env.openRouterModel,
-      temperature: 0.2,
-      messages,
-      response_format: { type: "json_object" },
-    }),
+    body: JSON.stringify(body),
   });
   if (res.status === 429 || res.status >= 500) {
     const retryAfter = Number(res.headers.get("retry-after") ?? 0);
@@ -41,11 +48,14 @@ async function postChat(messages: ChatMessage[], attempt: number): Promise<strin
       throw new LlmError(`OpenRouter rate-limited or unavailable (${res.status})`, "LLM_RATE_LIMIT");
     }
     await sleep(wait);
-    return postChat(messages, attempt + 1);
+    return postChat(messages, attempt + 1, useJsonMode);
+  }
+  if (res.status === 400 && useJsonMode) {
+    return postChat(messages, attempt, false);
   }
   if (!res.ok) {
-    const body = await res.text();
-    throw new LlmError(`OpenRouter error ${res.status}: ${body.slice(0, 300)}`);
+    const text = await res.text();
+    throw new LlmError(`OpenRouter error ${res.status}: ${text.slice(0, 300)}`);
   }
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];

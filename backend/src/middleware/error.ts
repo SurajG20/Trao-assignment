@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler, Request, Response, NextFunction } from "express";
-import { isAppError } from "./errors.js";
+import { isAppError } from "../errors.js";
 
 export function notFound(_req: Request, res: Response) {
   res.status(404).json({
