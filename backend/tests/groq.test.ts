@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { completeJson } from "../src/llm/openrouter.js";
+import { completeJson } from "../src/llm/groq.js";
 
-describe("OpenRouter JSON client", () => {
+describe("Groq JSON client", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
 
   it("retries after 429 then parses JSON", async () => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.GROQ_API_KEY = "test-key";
     let calls = 0;
     vi.stubGlobal(
       "fetch",

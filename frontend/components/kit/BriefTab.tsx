@@ -17,66 +17,63 @@ export function BriefTab({
   onRegen: () => void;
 }) {
   const urls = [...new Set([...kit.company_brief.sources, ...kit.source.pages_used])];
-  const fetchedAt = kit.source.researched_at
-    ? new Date(kit.source.researched_at).toLocaleString()
-    : null;
 
   function patchBrief(patch: Partial<KitPayload["company_brief"]>) {
     onChange({ ...kit, company_brief: { ...kit.company_brief, ...patch } });
   }
 
   return (
-    <section className="mt-8 space-y-6">
-      <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onRegen}>
-        {busy ? "Regenerating…" : "Regenerate brief"}
-      </Button>
-      <p className="max-w-[60ch] text-sm text-muted-foreground">
-        Regenerating the brief does not change questions, flashcards, or schedule edits.
-      </p>
-      <div className="grid gap-2">
-        <Label htmlFor="brief-summary">Summary</Label>
-        <Textarea
-          id="brief-summary"
-          className="min-h-28 font-display text-base leading-relaxed"
-          value={kit.company_brief.summary}
-          onChange={(e) => patchBrief({ summary: e.target.value })}
-        />
+    <section className="mt-6 space-y-4">
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onRegen}>
+          {busy ? "Regenerating…" : "Regenerate"}
+        </Button>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="brief-what">What they do</Label>
-        <Textarea
-          id="brief-what"
-          className="min-h-24 leading-relaxed"
-          placeholder="Product and customers from the crawl — add it here if the pages were thin."
-          value={kit.company_brief.what_they_do}
-          onChange={(e) => patchBrief({ what_they_do: e.target.value })}
-        />
-        {!kit.company_brief.what_they_do.trim() && (
-          <p className="bg-mark/40 px-2 py-1 text-sm">
-            Empty after crawl. Fill it in, or regenerate the brief once pages actually describe the
-            business.
-          </p>
-        )}
+
+      <div className="panel space-y-5 p-5 sm:p-6">
+        <div className="grid gap-2">
+          <Label htmlFor="brief-summary">Summary</Label>
+          <Textarea
+            id="brief-summary"
+            className="min-h-28 resize-none border-0 bg-secondary/50 font-display text-base leading-relaxed shadow-none focus-visible:ring-1"
+            value={kit.company_brief.summary}
+            onChange={(e) => patchBrief({ summary: e.target.value })}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="brief-what">What they do</Label>
+          <Textarea
+            id="brief-what"
+            className="min-h-24 resize-none border-0 bg-secondary/50 leading-relaxed shadow-none focus-visible:ring-1"
+            placeholder="Products, customers, and services."
+            value={kit.company_brief.what_they_do}
+            onChange={(e) => patchBrief({ what_they_do: e.target.value })}
+          />
+        </div>
       </div>
-      <div>
-        <h2 className="font-display text-xl font-medium">Sources</h2>
-        {urls.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No pages were used.</p>
-        ) : (
-          <ul className="mt-2 space-y-1 text-sm">
-            {urls.map((src) => (
-              <li key={src} className="flex flex-wrap items-baseline gap-2">
-                <a className="underline underline-offset-4" href={src} target="_blank" rel="noreferrer">
-                  {src}
-                </a>
-                {fetchedAt && (
-                  <span className="text-xs text-muted-foreground">fetched {fetchedAt}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+
+      {urls.length > 0 && (
+        <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+          {urls.map((src) => (
+            <li key={src}>
+              <a
+                className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                href={src}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {(() => {
+                  try {
+                    return new URL(src).hostname;
+                  } catch {
+                    return src;
+                  }
+                })()}
+              </a>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

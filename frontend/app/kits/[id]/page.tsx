@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp, Pencil, Trash2 } from "lucide-react";
 import { Shell } from "@/components/Shell";
 import { GenerationProgress } from "@/components/GenerationProgress";
 import { BriefTab } from "@/components/kit/BriefTab";
@@ -11,10 +12,13 @@ import { FlashcardsTab } from "@/components/kit/FlashcardsTab";
 import { RoleTab } from "@/components/kit/RoleTab";
 import { ScheduleTab } from "@/components/kit/ScheduleTab";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { exportKitPdf } from "@/lib/exportKitPdf";
 import { ApiError, api } from "@/lib/api";
 import type { KitPayload, KitRecord, Question, QuestionCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const CATEGORIES: QuestionCategory[] = [
   "technical",
@@ -24,12 +28,19 @@ const CATEGORIES: QuestionCategory[] = [
 ];
 
 const TABS = [
-  ["brief", "Company brief"],
+  ["brief", "Brief"],
   ["role", "Role"],
   ["questions", "Questions"],
   ["cards", "Flashcards"],
   ["schedule", "Schedule"],
 ] as const;
+
+const CATEGORY_LABELS: Record<QuestionCategory, string> = {
+  technical: "Technical",
+  behavioural: "Behavioural",
+  "system-design": "System design",
+  "company-fit": "Company fit",
+};
 
 export default function KitDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -103,18 +114,16 @@ export default function KitDetailPage() {
 
   return (
     <Shell email={email}>
-      <p className="text-sm text-muted-foreground">
-        <Link className="underline-offset-4 hover:underline" href="/kits">
-          Kits
-        </Link>
-        <span aria-hidden className="mx-2 text-border">
-          /
-        </span>
-        {kit?.role.title || "Generating"}
-      </p>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight">
+      <Link
+        href="/kits"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        ← Kits
+      </Link>
+
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
             {kit?.role.title || "Interview kit"}
           </h1>
           {kit?.source.company && (
@@ -122,51 +131,59 @@ export default function KitDetailPage() {
           )}
         </div>
         {kit && (
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={() => exportKitPdf(kit)}>
+          <div className="flex shrink-0 gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => exportKitPdf(kit)}>
               Export PDF
             </Button>
-            <Button asChild>
-              <Link href={`/kits/${id}/practice`}>Practice flashcards</Link>
-            </Button>
+            {kit.flashcards.length > 0 && (
+              <Button asChild size="sm">
+                <Link href={`/kits/${id}/practice`}>Practice</Link>
+              </Button>
+            )}
           </div>
         )}
       </div>
 
       {error && (
-        <p role="alert" className="mt-4 border border-destructive/50 bg-card px-3 py-2 text-sm">
+        <p role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           {error}
         </p>
       )}
 
       {record && <GenerationProgress record={record} />}
 
-      {!record && !error && <p className="mt-8 text-muted-foreground">Loading kit…</p>}
+      {!record && !error && <KitDetailSkeletonContent />}
+
+      {record && !kit && !error && record.status !== "failed" && (
+        <KitTabSkeletonContent />
+      )}
 
       {kit && (
         <>
-          <div
-            className="mt-10 flex flex-wrap gap-x-6 gap-y-2 border-b border-border"
-            role="tablist"
-            aria-label="Kit sections"
-          >
-            {TABS.map(([key, label]) => (
-              <button
-                key={key}
-                type="button"
-                role="tab"
-                aria-selected={tab === key}
-                className={cn(
-                  "-mb-px border-b-2 pb-2 text-sm",
-                  tab === key
-                    ? "border-primary text-foreground"
-                    : "border-transparent text-muted-foreground hover:text-foreground",
-                )}
-                onClick={() => setTab(key)}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="kit-tab-scroll mt-8 -mx-4 overflow-x-auto border-b border-border px-4 sm:mx-0 sm:px-0">
+            <div
+              className="flex min-w-max gap-6 sm:min-w-0 sm:gap-8"
+              role="tablist"
+              aria-label="Kit sections"
+            >
+              {TABS.map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === key}
+                  className={cn(
+                    "shrink-0 border-b-2 pb-3 text-sm font-medium transition-colors",
+                    tab === key
+                      ? "-mb-px border-primary text-foreground"
+                      : "-mb-px border-transparent text-muted-foreground hover:text-foreground",
+                  )}
+                  onClick={() => setTab(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           <CoverageBanner kit={kit} />
@@ -194,7 +211,6 @@ export default function KitDetailPage() {
           {tab === "questions" && (
             <QuestionsPanel
               kit={kit}
-              itemState={record?.itemState ?? {}}
               regenBusy={regenBusy}
               highlightId={highlightQuestion}
               onRegen={regen}
@@ -202,9 +218,7 @@ export default function KitDetailPage() {
             />
           )}
 
-          {tab === "cards" && (
-            <FlashcardsTab kit={kit} kitId={id} onChange={queueSave} />
-          )}
+          {tab === "cards" && <FlashcardsTab kit={kit} kitId={id} onChange={queueSave} />}
 
           {tab === "schedule" && (
             <ScheduleTab
@@ -219,55 +233,185 @@ export default function KitDetailPage() {
   );
 }
 
-function RegenBar({
-  busy,
-  onClick,
-  label,
-}: {
-  busy: boolean;
-  onClick: () => void;
-  label: string;
-}) {
+function KitDetailSkeletonContent() {
+  const tabs = ["Brief", "Role", "Questions", "Flashcards", "Schedule"];
+
   return (
-    <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClick}>
-      {busy ? "Regenerating…" : label}
-    </Button>
+    <div className="mt-4 space-y-8" aria-busy="true" aria-label="Loading kit">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Skeleton className="h-10 w-3/4 max-w-md" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-24" />
+          <Skeleton className="h-9 w-20" />
+        </div>
+      </div>
+      <div className="flex gap-6 border-b border-border pb-3 sm:gap-8">
+        {tabs.map((tab) => (
+          <Skeleton key={tab} className="h-4 w-16" />
+        ))}
+      </div>
+      <KitTabSkeletonContent />
+    </div>
   );
 }
 
-function Field({
-  label,
-  value,
-  onChange,
-  className,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  className?: string;
-}) {
+function KitTabSkeletonContent() {
   return (
-    <label className={cn("block text-sm font-medium", className)}>
-      {label}
-      <textarea
-        className="mt-1 min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-normal leading-relaxed"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
-    </label>
+    <div className="mt-6 space-y-4" aria-hidden>
+      <div className="flex justify-end">
+        <Skeleton className="h-8 w-24" />
+      </div>
+      <div className="panel space-y-4 p-5 sm:p-6">
+        <Skeleton className="h-4 w-20" />
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    </div>
+  );
+}
+
+function QuestionItem({
+  index,
+  question,
+  highlighted,
+  onUpdate,
+  onMove,
+  onDelete,
+}: {
+  index: number;
+  question: Question;
+  highlighted: boolean;
+  onUpdate: (patch: Partial<Question>) => void;
+  onDelete: () => void;
+  onMove: (dir: -1 | 1) => void;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const [editing, setEditing] = useState(!question.prompt.trim());
+  const hasAnswer = Boolean(question.answer_outline.trim());
+
+  function closeEdit() {
+    setEditing(false);
+    setRevealed(false);
+  }
+
+  return (
+    <li
+      id={`question-${question.id}`}
+      className={cn("panel p-4 sm:p-5", highlighted && "ring-2 ring-primary/30")}
+    >
+      {editing ? (
+        <div className="space-y-3">
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Question</Label>
+            <Textarea
+              className="min-h-20 resize-none border-0 bg-secondary/50 leading-relaxed shadow-none focus-visible:ring-1"
+              value={question.prompt}
+              onChange={(e) => onUpdate({ prompt: e.target.value })}
+            />
+          </div>
+          <div className="grid gap-1.5">
+            <Label className="text-xs text-muted-foreground">Answer outline</Label>
+            <Textarea
+              className="min-h-24 resize-none border-0 bg-secondary/50 leading-relaxed shadow-none focus-visible:ring-1"
+              value={question.answer_outline}
+              onChange={(e) => onUpdate({ answer_outline: e.target.value })}
+            />
+          </div>
+          <Button type="button" size="sm" variant="secondary" onClick={closeEdit}>
+            Done
+          </Button>
+        </div>
+      ) : (
+        <>
+          <div className="flex gap-3">
+            <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-muted-foreground">
+              {index + 1}
+            </span>
+            <p className="min-w-0 flex-1 font-sans text-base leading-relaxed text-foreground sm:text-[1.05rem]">
+              {question.prompt || "Empty question"}
+            </p>
+          </div>
+
+          {hasAnswer && (
+            <div className="mt-4 pl-9">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRevealed((prev) => !prev)}
+              >
+                {revealed ? "Hide answer" : "View answer"}
+              </Button>
+              {revealed && (
+                <div className="mt-3 rounded-md border border-border bg-secondary/30 px-4 py-3">
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {question.answer_outline}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="mt-4 flex justify-end gap-0.5 border-t border-border pt-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+              onClick={() => setEditing(true)}
+            >
+              <Pencil className="size-3.5" />
+              <span className="sr-only">Edit</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+              onClick={() => onMove(-1)}
+            >
+              <ChevronUp className="size-4" />
+              <span className="sr-only">Move up</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground"
+              onClick={() => onMove(1)}
+            >
+              <ChevronDown className="size-4" />
+              <span className="sr-only">Move down</span>
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-4" />
+              <span className="sr-only">Delete</span>
+            </Button>
+          </div>
+        </>
+      )}
+    </li>
   );
 }
 
 function QuestionsPanel({
   kit,
-  itemState,
   regenBusy,
   highlightId,
   onRegen,
   onChange,
 }: {
   kit: KitPayload;
-  itemState: Record<string, string>;
   regenBusy: string | null;
   highlightId?: string | null;
   onRegen: (section: string) => void;
@@ -299,88 +443,47 @@ function QuestionsPanel({
   }
 
   return (
-    <section className="mt-8 space-y-12">
+    <section className="mt-6 space-y-6">
       {CATEGORIES.map((category) => (
         <div key={category}>
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="font-display text-2xl font-medium capitalize">
-              {category.replace("-", " ")}
-            </h2>
-            <RegenBar
-              busy={regenBusy === category}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="font-display text-lg font-medium">{CATEGORY_LABELS[category]}</h2>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={regenBusy === category}
               onClick={() => onRegen(category)}
-              label={`Regenerate ${category}`}
-            />
+            >
+              {regenBusy === category ? "Regenerating…" : "Regenerate"}
+            </Button>
           </div>
-          {grouped[category].length === 0 && (
-            <p className="text-sm text-muted-foreground">No questions in this category yet.</p>
+
+          {grouped[category].length === 0 ? (
+            <p className="text-sm text-muted-foreground">No questions yet.</p>
+          ) : (
+            <ul className="space-y-3">
+              {grouped[category].map((q, i) => (
+                <QuestionItem
+                  key={q.id}
+                  index={i}
+                  question={q}
+                  highlighted={highlightId === q.id}
+                  onUpdate={(patch) => updateQuestion(q.id, patch)}
+                  onMove={(dir) => move(q.id, dir)}
+                  onDelete={() =>
+                    onChange({ ...kit, questions: kit.questions.filter((x) => x.id !== q.id) })
+                  }
+                />
+              ))}
+            </ul>
           )}
-          <ul className="space-y-8">
-            {grouped[category].map((q) => (
-              <li
-                key={q.id}
-                id={`question-${q.id}`}
-                className={cn(
-                  "border-t border-border pt-4",
-                  highlightId === q.id && "bg-mark/20 -mx-2 px-2",
-                )}
-              >
-                <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                  <span>{q.id}</span>
-                  <span>{itemState[q.id] || "generated"}</span>
-                  <label>
-                    Category
-                    <select
-                      className="ml-1 rounded-md border border-input bg-card px-1 py-0.5"
-                      value={q.category}
-                      onChange={(e) =>
-                        updateQuestion(q.id, { category: e.target.value as QuestionCategory })
-                      }
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <button type="button" className="hover:underline" onClick={() => move(q.id, -1)}>
-                    Up
-                  </button>
-                  <button type="button" className="hover:underline" onClick={() => move(q.id, 1)}>
-                    Down
-                  </button>
-                  <button
-                    type="button"
-                    className="text-destructive hover:underline"
-                    onClick={() =>
-                      onChange({ ...kit, questions: kit.questions.filter((x) => x.id !== q.id) })
-                    }
-                  >
-                    Delete
-                  </button>
-                </div>
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <Field
-                    label="They ask"
-                    value={q.prompt}
-                    className="font-display"
-                    onChange={(prompt) => updateQuestion(q.id, { prompt })}
-                  />
-                  <Field
-                    label="You answer"
-                    value={q.answer_outline}
-                    onChange={(answer_outline) => updateQuestion(q.id, { answer_outline })}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
+
           <Button
             type="button"
             variant="outline"
             size="sm"
-            className="mt-4"
+            className="mt-3"
             onClick={() =>
               onChange({
                 ...kit,
@@ -390,7 +493,7 @@ function QuestionsPanel({
                     id: `q-user-${Date.now()}`,
                     requirement_ids: [],
                     category,
-                    prompt: "New question",
+                    prompt: "",
                     answer_outline: "",
                     difficulty: 2,
                   },
@@ -398,7 +501,7 @@ function QuestionsPanel({
               })
             }
           >
-            Add {category} question
+            Add question
           </Button>
         </div>
       ))}

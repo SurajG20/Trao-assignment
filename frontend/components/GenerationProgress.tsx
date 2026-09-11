@@ -63,7 +63,7 @@ export function GenerationProgress({
   if (!generating) return null;
 
   return (
-    <div className="sheet mt-8 p-6" aria-live="polite">
+    <div className="panel mt-8 p-6" aria-live="polite">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-display text-xl font-medium">{current}</p>

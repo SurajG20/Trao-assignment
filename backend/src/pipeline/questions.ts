@@ -4,7 +4,7 @@ import {
   type Question,
   type Requirement,
 } from "../schemas/kit.js";
-import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { completeJson, wrapUntrusted } from "../llm/groq.js";
 import { questionsSystem } from "./prompts.js";
 
 const questionsSchema = z.object({

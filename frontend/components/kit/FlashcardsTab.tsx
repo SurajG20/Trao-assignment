@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { FlipFlashcard } from "@/components/Flashcard";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,7 +10,6 @@ import type { Flashcard, KitPayload } from "@/lib/types";
 
 export function FlashcardsTab({
   kit,
-  kitId,
   onChange,
 }: {
   kit: KitPayload;
@@ -32,49 +29,35 @@ export function FlashcardsTab({
   }
 
   return (
-    <section className="mt-8 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-muted-foreground">
-          {kit.flashcards.length} card{kit.flashcards.length === 1 ? "" : "s"}. Click a card to
-          flip it.
-        </p>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/kits/${kitId}/practice`}>Practice</Link>
-        </Button>
-      </div>
-
-      {kit.flashcards.length === 0 && (
-        <p className="py-10 text-muted-foreground">
-          No flashcards yet. Add one, or regenerate the kit.
-        </p>
-      )}
-
-      <div className="grid gap-6 sm:grid-cols-2">
-        {kit.flashcards.map((card) => {
-          const isEditing = editing === card.id;
-          return (
-            <article key={card.id} className="space-y-2">
-              <div className="relative">
+    <section className="mt-6 space-y-4">
+      {kit.flashcards.length === 0 ? (
+        <p className="py-12 text-center text-sm text-muted-foreground">No flashcards yet.</p>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {kit.flashcards.map((card) => {
+            const isEditing = editing === card.id;
+            return (
+              <article key={card.id} className="relative">
                 {isEditing ? (
-                  <div className="flex h-56 flex-col gap-2 rounded-lg bg-card p-4 ring-1 ring-border">
+                  <div className="panel flex h-64 flex-col gap-2 p-4 sm:h-72">
                     <div className="grid min-h-0 flex-1 gap-1">
                       <Label htmlFor={`${card.id}-front`} className="text-xs">
-                        They ask
+                        Question
                       </Label>
                       <Textarea
                         id={`${card.id}-front`}
-                        className="min-h-0 flex-1 font-display"
+                        className="min-h-0 flex-1 resize-none border-0 bg-secondary/50 font-display shadow-none focus-visible:ring-1"
                         value={card.front}
                         onChange={(e) => patchCard(card.id, { front: e.target.value })}
                       />
                     </div>
                     <div className="grid min-h-0 flex-1 gap-1">
                       <Label htmlFor={`${card.id}-back`} className="text-xs">
-                        You answer
+                        Answer
                       </Label>
                       <Textarea
                         id={`${card.id}-back`}
-                        className="min-h-0 flex-1"
+                        className="min-h-0 flex-1 resize-none border-0 bg-secondary/50 shadow-none focus-visible:ring-1"
                         value={card.back}
                         onChange={(e) => patchCard(card.id, { back: e.target.value })}
                       />
@@ -104,20 +87,20 @@ export function FlashcardsTab({
                     type="button"
                     size="icon"
                     variant="secondary"
-                    className="size-8"
+                    className="size-7 bg-card/90"
                     onClick={(e) => {
                       e.stopPropagation();
                       setEditing(isEditing ? null : card.id);
                     }}
                   >
-                    <Pencil />
-                    <span className="sr-only">Edit card</span>
+                    <Pencil className="size-3.5" />
+                    <span className="sr-only">Edit</span>
                   </Button>
                   <Button
                     type="button"
                     size="icon"
                     variant="secondary"
-                    className="size-8"
+                    className="size-7 bg-card/90"
                     onClick={(e) => {
                       e.stopPropagation();
                       onChange({
@@ -126,42 +109,40 @@ export function FlashcardsTab({
                       });
                     }}
                   >
-                    <Trash2 />
-                    <span className="sr-only">Delete card</span>
+                    <Trash2 className="size-3.5" />
+                    <span className="sr-only">Delete</span>
                   </Button>
                 </div>
-              </div>
-              {card.requirement_ids.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {card.requirement_ids.map((reqId) => (
-                    <Badge key={reqId} variant="outline" className="text-[10px]">
-                      {reqId}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </article>
-          );
-        })}
-        <button
-          type="button"
-          className="flex h-56 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border text-sm text-muted-foreground hover:border-foreground hover:text-foreground"
-          onClick={() => {
-            const id = `f-user-${Date.now()}`;
-            onChange({
-              ...kit,
-              flashcards: [
-                ...kit.flashcards,
-                { id, front: "New prompt", back: "Answer", requirement_ids: [] },
-              ],
-            });
-            setEditing(id);
-          }}
-        >
-          <Plus className="size-5" />
-          Add flashcard
-        </button>
-      </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full border-dashed sm:w-auto"
+        onClick={() => {
+          const id = `f-user-${Date.now()}`;
+          onChange({
+            ...kit,
+            flashcards: [
+              ...kit.flashcards,
+              {
+                id,
+                front: "What is your experience with …?",
+                back: "Concise answer here.",
+                requirement_ids: [],
+              },
+            ],
+          });
+          setEditing(id);
+        }}
+      >
+        <Plus className="size-4" />
+        Add flashcard
+      </Button>
     </section>
   );
 }

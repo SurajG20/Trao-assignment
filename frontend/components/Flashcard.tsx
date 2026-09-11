@@ -19,58 +19,70 @@ export function FlipFlashcard({
   className?: string;
   padForActions?: boolean;
 }) {
+  const tall = size === "lg";
+
   return (
     <div
       className={cn(
         "flip-scene w-full",
-        size === "lg" ? "h-80 sm:h-[28rem]" : "h-56",
+        tall ? "h-80 sm:h-96" : "h-64 sm:h-72",
         className,
       )}
     >
       <button
         type="button"
-        className="flip-card relative h-full w-full text-left"
+        className="flip-card relative block h-full w-full appearance-none border-0 bg-transparent p-0 text-left"
         data-flipped={flipped}
         onClick={onFlip}
         aria-pressed={flipped}
-        aria-label={flipped ? "Show the question" : "Show your answer"}
+        aria-label={flipped ? "Hide answer" : "Reveal answer"}
       >
+        {/* Question side */}
         <div
           className={cn(
-            "flip-face overflow-y-auto rounded-lg bg-primary text-primary-foreground",
-            padForActions && "pr-16",
+            "flip-face flip-face-front overflow-hidden rounded-lg border border-primary/20 bg-primary shadow-sm",
+            padForActions && "pr-12",
           )}
         >
-          <div className="flex h-full flex-col justify-between p-5">
-            <p className="font-display text-sm italic text-primary-foreground/70">They ask</p>
-            <p
-              className={cn(
-                "font-display font-medium leading-snug",
-                size === "lg" ? "text-2xl sm:text-3xl" : "text-lg",
-              )}
-            >
-              {front || "Empty prompt"}
-            </p>
-            <p className="text-sm text-primary-foreground/70">Flip for your outline</p>
+          <div className="flex h-full flex-col p-5 sm:p-6">
+            <p className="text-xs font-medium uppercase tracking-wide text-white/70">Question</p>
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+              <p
+                className={cn(
+                  "font-sans font-medium leading-relaxed text-white",
+                  tall ? "text-lg sm:text-xl" : "text-base sm:text-lg",
+                )}
+              >
+                {front || "No question"}
+              </p>
+            </div>
+            {!flipped && (
+              <p className="mt-3 shrink-0 text-xs text-white/60">Tap to reveal answer</p>
+            )}
           </div>
         </div>
+
+        {/* Answer side */}
         <div
           className={cn(
-            "flip-face flip-face-back overflow-y-auto rounded-lg bg-card text-card-foreground ring-1 ring-border",
-            padForActions && "pr-16",
+            "flip-face flip-face-back overflow-hidden rounded-lg border border-border bg-card shadow-sm",
+            padForActions && "pr-12",
           )}
         >
-          <div className="flex h-full flex-col justify-between p-5">
-            <p className="font-display text-sm italic text-muted-foreground">You answer</p>
-            <p
-              className={cn(
-                "leading-relaxed",
-                size === "lg" ? "text-base sm:text-lg" : "text-sm",
-              )}
-            >
-              {back || "Empty answer"}
+          <div className="flex h-full flex-col p-5 sm:p-6">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Answer
             </p>
-            <p className="text-sm text-muted-foreground">Flip back to the question</p>
+            <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+              <p
+                className={cn(
+                  "whitespace-pre-wrap font-sans leading-relaxed text-card-foreground",
+                  tall ? "text-base sm:text-lg" : "text-sm sm:text-base",
+                )}
+              >
+                {back || "No answer"}
+              </p>
+            </div>
           </div>
         </div>
       </button>

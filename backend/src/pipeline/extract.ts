@@ -4,7 +4,8 @@ import {
   requirementPrioritySchema,
   type Requirement,
 } from "../schemas/kit.js";
-import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { env } from "../config/env.js";
+import { completeJson, wrapUntrusted } from "../llm/groq.js";
 import { EXTRACT_SYSTEM } from "./prompts.js";
 
 const extractedSchema = z.object({
@@ -93,7 +94,7 @@ function withIds(
 }
 
 function hasLlm() {
-  return Boolean(process.env.OPENROUTER_API_KEY);
+  return Boolean(process.env.GROQ_API_KEY || env.groqApiKey);
 }
 
 export async function extractRole(jd: string): Promise<ExtractedRole> {

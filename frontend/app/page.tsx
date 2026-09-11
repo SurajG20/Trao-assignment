@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { HomePageSkeleton } from "@/components/skeletons/PageSkeletons";
 
 export default function HomePage() {
   const router = useRouter();
@@ -12,9 +13,5 @@ export default function HomePage() {
       .then(() => router.replace("/kits"))
       .catch(() => router.replace("/login"));
   }, [router]);
-  return (
-    <main id="main" className="grid min-h-screen place-items-center text-muted-foreground">
-      Loading…
-    </main>
-  );
+  return <HomePageSkeleton />;
 }

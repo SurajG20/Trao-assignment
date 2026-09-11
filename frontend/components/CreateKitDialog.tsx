@@ -96,7 +96,16 @@ export function CreateKitDialog({
             Paste the posting. We crawl the company site; we do not fetch job boards.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col gap-4">
+        <form onSubmit={onSubmit} className="relative flex min-h-0 flex-1 flex-col gap-4">
+          {pending && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-background/60 backdrop-blur-[1px]"
+              aria-busy="true"
+              aria-label="Creating kit"
+            >
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
             {error && (
               <Alert variant="destructive">

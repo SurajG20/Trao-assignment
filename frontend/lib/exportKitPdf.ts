@@ -64,7 +64,7 @@ function buildHtml(kit: KitPayload) {
       (card) => `
       <article class="card">
         <p class="meta">${esc(card.id)}</p>
-        <p><strong>Prompt:</strong> ${esc(card.front)}</p>
+        <p><strong>Question:</strong> ${esc(card.front)}</p>
         <p><strong>Answer:</strong> ${esc(card.back)}</p>
       </article>`,
     )

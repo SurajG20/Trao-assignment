@@ -19,25 +19,23 @@ async function postChat(
   attempt: number,
   useJsonMode = true,
 ): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY || env.openRouterApiKey;
+  const apiKey = process.env.GROQ_API_KEY || env.groqApiKey;
   if (!apiKey) {
-    throw new LlmError("OPENROUTER_API_KEY is not set", "LLM_UNCONFIGURED");
+    throw new LlmError("GROQ_API_KEY is not set", "LLM_UNCONFIGURED");
   }
   const body: Record<string, unknown> = {
-    model: process.env.OPENROUTER_MODEL || env.openRouterModel,
+    model: process.env.GROQ_MODEL || env.groqModel,
     temperature: 0.2,
     messages,
   };
   if (useJsonMode) {
     body.response_format = { type: "json_object" };
   }
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "HTTP-Referer": env.openRouterReferer,
-      "X-Title": "Trao Interview Prep Kit",
     },
     body: JSON.stringify(body),
   });
@@ -45,7 +43,7 @@ async function postChat(
     const retryAfter = Number(res.headers.get("retry-after") ?? 0);
     const wait = Math.min(20_000, retryAfter * 1000 || 500 * 2 ** attempt);
     if (attempt >= 5) {
-      throw new LlmError(`OpenRouter rate-limited or unavailable (${res.status})`, "LLM_RATE_LIMIT");
+      throw new LlmError(`Groq rate-limited or unavailable (${res.status})`, "LLM_RATE_LIMIT");
     }
     await sleep(wait);
     return postChat(messages, attempt + 1, useJsonMode);
@@ -55,7 +53,7 @@ async function postChat(
   }
   if (!res.ok) {
     const text = await res.text();
-    throw new LlmError(`OpenRouter error ${res.status}: ${text.slice(0, 300)}`);
+    throw new LlmError(`Groq error ${res.status}: ${text.slice(0, 300)}`);
   }
   const data = (await res.json()) as {
     choices?: { message?: { content?: string } }[];

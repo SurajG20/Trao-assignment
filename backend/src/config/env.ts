@@ -25,11 +25,8 @@ export const env = {
   port: Number(process.env.PORT ?? 4000),
   mongodbUri: required("MONGODB_URI", "mongodb://127.0.0.1:27017/trao_kits"),
   sessionSecret: required("SESSION_SECRET", "dev-only-session-secret"),
-  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
-  openRouterModel:
-    process.env.OPENROUTER_MODEL ?? "meta-llama/llama-3.3-70b-instruct:free",
-  openRouterReferer:
-    process.env.OPENROUTER_HTTP_REFERER ?? "http://localhost:4000",
+  groqApiKey: process.env.GROQ_API_KEY ?? "",
+  groqModel: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
   allowPrivateUrls: bool("ALLOW_PRIVATE_URLS", true),
 };
 

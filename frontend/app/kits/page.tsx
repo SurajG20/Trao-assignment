@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Suspense, useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Shell } from "@/components/Shell";
 import { CreateKitDialog } from "@/components/CreateKitDialog";
@@ -24,12 +25,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function KitsPage() {
   return (
     <Suspense>
       <KitsHome />
     </Suspense>
+  );
+}
+
+function KitsPageSkeletonContent() {
+  return (
+    <ul className="mt-8 space-y-3" aria-busy="true" aria-label="Loading kits">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <li key={i} className="panel p-5">
+          <Skeleton className="h-6 w-2/3 max-w-sm" />
+          <Skeleton className="mt-2 h-4 w-48" />
+          <Skeleton className="mt-3 h-5 w-16" />
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -78,10 +94,6 @@ function KitsHome() {
     return () => clearInterval(t);
   }, [inFlight]);
 
-  function openDialog() {
-    setDialogOpen(true);
-  }
-
   function onCreated(created: KitRecord[]) {
     setKits((prev) => {
       const rest = (prev ?? []).filter((kit) => !created.some((row) => row.id === kit.id));
@@ -109,80 +121,74 @@ function KitsHome() {
     <Shell email={email}>
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight">Your kits</h1>
-          <p className="mt-2 max-w-[48ch] text-muted-foreground">
-            Each kit is generated from a job description and a company site.
-          </p>
+          <h1 className="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+            Your kits
+          </h1>
         </div>
-        <Button type="button" onClick={openDialog}>
+        <Button type="button" onClick={() => setDialogOpen(true)}>
           New kit
         </Button>
       </div>
+
       {error && (
-        <p role="alert" className="mt-6 border border-destructive/50 bg-card px-3 py-2 text-sm">
+        <p role="alert" className="mt-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           {error}
         </p>
       )}
-      {kits === null && !error && <p className="mt-10 text-muted-foreground">Loading kits…</p>}
+
+      {kits === null && !error && <KitsPageSkeletonContent />}
+
       {kits && kits.length === 0 && (
-        <div className="mt-12 max-w-lg">
-          <p className="font-display text-2xl font-medium">No kits yet.</p>
-          <p className="mt-2 text-muted-foreground">
-            Paste a job description to generate the first one.
-          </p>
-          <Button className="mt-6" type="button" onClick={openDialog}>
-            Create your first kit
+        <div className="mt-16 text-center">
+          <p className="text-muted-foreground">Paste a job description to create your first kit.</p>
+          <Button className="mt-4" type="button" onClick={() => setDialogOpen(true)}>
+            Create kit
           </Button>
         </div>
       )}
+
       {kits && kits.length > 0 && (
-        <ul className="mt-10 divide-y divide-border border-y border-border">
+        <ul className="mt-8 space-y-3">
           {kits.map((kit) => (
-            <li key={kit.id} className="group">
-              <div className="flex flex-wrap items-start justify-between gap-4 py-5">
-                <Link href={`/kits/${kit.id}`} className="min-w-0 flex-1">
-                  <p className="font-display text-2xl font-medium tracking-tight group-hover:underline">
-                    {kitRoleTitle(kit)}
-                  </p>
-                  <p className="mt-1 flex flex-wrap gap-x-4 text-sm text-muted-foreground">
-                    <span>{companyHost(kit.input.company_url)}</span>
-                    <span>
-                      {kit.input.days} day{kit.input.days === 1 ? "" : "s"} to go
-                    </span>
-                    <span>{relativeTime(kit.createdAt)}</span>
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-3">
-                    <Badge variant={statusBadgeVariant(kit.status)}>{kit.status}</Badge>
-                    <GenerationProgress record={kit} compact />
-                  </div>
-                </Link>
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/kits/${kit.id}`}>Open</Link>
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    type="button"
-                    onClick={() => setPendingDelete(kit)}
-                  >
-                    Delete
-                  </Button>
+            <li key={kit.id} className="panel flex items-center gap-2 p-5">
+              <Link
+                href={`/kits/${kit.id}`}
+                className="min-w-0 flex-1 transition-colors hover:opacity-80"
+              >
+                <p className="font-display text-xl font-medium tracking-tight">
+                  {kitRoleTitle(kit)}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {companyHost(kit.input.company_url)} · {kit.input.days} days ·{" "}
+                  {relativeTime(kit.createdAt)}
+                </p>
+                <div className="mt-2 flex items-center gap-3">
+                  <Badge variant={statusBadgeVariant(kit.status)}>{kit.status}</Badge>
+                  <GenerationProgress record={kit} compact />
                 </div>
-              </div>
+              </Link>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => setPendingDelete(kit)}
+              >
+                <Trash2 className="size-4" />
+                <span className="sr-only">Delete</span>
+              </Button>
             </li>
           ))}
         </ul>
       )}
+
       <CreateKitDialog open={dialogOpen} onOpenChange={setDialogOpen} onCreated={onCreated} />
       <Dialog open={Boolean(pendingDelete)} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="font-display text-2xl">Delete this kit?</DialogTitle>
+            <DialogTitle className="font-display text-xl">Delete kit?</DialogTitle>
             <DialogDescription>
-              {pendingDelete
-                ? `${kitRoleTitle(pendingDelete)} will be removed. You can generate it again from the same posting later.`
-                : ""}
+              {pendingDelete ? `${kitRoleTitle(pendingDelete)} will be permanently removed.` : ""}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -195,7 +201,7 @@ function KitsHome() {
               disabled={deleting}
               onClick={() => void confirmDelete()}
             >
-              {deleting ? "Deleting…" : "Delete kit"}
+              {deleting ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

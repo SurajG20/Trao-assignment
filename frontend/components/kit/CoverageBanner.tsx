@@ -1,35 +1,18 @@
-import { Badge } from "@/components/ui/badge";
 import type { KitPayload } from "@/lib/types";
-import { mustHaveCoverage, questionsForRequirement } from "@/lib/kitCoverage";
+import { mustHaveCoverage } from "@/lib/kitCoverage";
 
-export { mustHaveCoverage, questionsForRequirement };
+export { mustHaveCoverage, questionsForRequirement } from "@/lib/kitCoverage";
 
 export function CoverageBanner({ kit }: { kit: KitPayload }) {
   const { covered, total } = mustHaveCoverage(kit);
-  const complete = total === 0 || covered === total;
+  if (total === 0 || covered === total) return null;
+
   const gaps = total - covered;
 
   return (
-    <div
-      className={`mt-6 flex flex-wrap items-center justify-between gap-3 px-0 py-3 text-sm ${
-        complete ? "border-b border-border" : "border-b-4 border-mark"
-      }`}
-    >
-      <div>
-        <p className="font-medium">
-          {total === 0
-            ? "No must-have requirements extracted"
-            : `${covered} of ${total} must-haves covered`}
-        </p>
-        {!complete && gaps > 0 && (
-          <p className="mt-0.5 text-muted-foreground">
-            Add or regenerate questions for uncovered must-haves on the Role tab.
-          </p>
-        )}
-      </div>
-      <Badge variant={complete ? "secondary" : "outline"}>
-        {complete ? "Coverage complete" : `${gaps} gap${gaps === 1 ? "" : "s"}`}
-      </Badge>
+    <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+      <span className="font-medium">{gaps} must-have gap{gaps === 1 ? "" : "s"}</span>
+      <span className="text-amber-900/80"> — add or regenerate questions on the Role tab.</span>
     </div>
   );
 }

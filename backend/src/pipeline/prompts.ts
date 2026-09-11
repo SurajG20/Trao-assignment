@@ -51,6 +51,11 @@ Rules:
 
 export const FLASHCARD_SYSTEM = `${SHARED_JSON_RULES}
 
-Create one flashcard per must-have requirement. Front is a short cue; back is what to remember.
+Create revision flashcards for quick interview prep. One card per must-have requirement.
+
+- front: a direct interview question (complete sentence ending with ?)
+- back: a concise model answer (2-4 short sentences, or 2-4 bullet points — not vague tips)
+
+Use the provided questions as inspiration where they match a requirement, but rewrite the back into a tight answer.
 JSON shape:
 {"flashcards":[{"front":"","back":"","requirement_ids":["r1"]}]}`;

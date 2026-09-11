@@ -117,7 +117,6 @@ export function AuthForm({ mode }: { mode: Mode }) {
             )}
           </p>
         </form>
-        <p className="text-sm text-muted-foreground">Trao engineering assessment</p>
       </section>
 
       <section
@@ -126,18 +125,18 @@ export function AuthForm({ mode }: { mode: Mode }) {
       >
         <div className="grid min-h-[32rem] w-full flex-1 grid-cols-2 overflow-hidden rounded-lg">
           <div className="flex flex-col justify-between bg-primary p-8 text-primary-foreground">
-            <p className="font-display text-sm italic text-primary-foreground/70">They ask</p>
             <p className="font-display text-3xl font-medium leading-snug">
-              Why this company, and why this role, in the next five days?
+              Turn a job posting into a complete interview kit.
             </p>
-            <p className="text-sm text-primary-foreground/70">Paste a posting. We write the brief.</p>
+            <p className="text-sm text-primary-foreground/70">
+              Company research, questions, flashcards, and a study plan.
+            </p>
           </div>
           <div className="flex flex-col justify-between bg-card p-8 ring-1 ring-border">
-            <p className="font-display text-sm italic text-muted-foreground">You answer</p>
             <p className="max-w-[38ch] text-lg leading-relaxed">
-              Company pages, the job text, and a schedule you can actually finish before you sit down.
+              Paste the description. We crawl the company site and build everything you need to prepare.
             </p>
-            <p className="text-sm text-muted-foreground">Flashcards and a day-by-day plan.</p>
+            <p className="text-sm text-muted-foreground">Ready in minutes.</p>
           </div>
         </div>
       </section>

@@ -19,12 +19,12 @@ export function Shell({
   }
   return (
     <div className="min-h-screen">
-      <header className="border-b border-border/70">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-border/80 bg-card/90 backdrop-blur-md">
+        <div className="mx-auto flex max-w-4xl items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <Brand />
-          <nav className="flex items-center gap-3 text-sm">
+          <nav className="flex items-center gap-2 text-sm">
             {email && (
-              <span className="hidden max-w-48 truncate text-muted-foreground sm:inline">
+              <span className="hidden max-w-40 truncate text-muted-foreground sm:inline">
                 {email}
               </span>
             )}
@@ -34,7 +34,7 @@ export function Shell({
           </nav>
         </div>
       </header>
-      <div id="main" className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <div id="main" className="mx-auto max-w-4xl px-4 py-8 sm:px-6 sm:py-10">
         {children}
       </div>
     </div>

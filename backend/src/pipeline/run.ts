@@ -71,7 +71,7 @@ export async function runPipeline(
   onProgress: ProgressFn = () => undefined,
 ): Promise<PipelineResult> {
   const days = Math.min(60, Math.max(1, input.days));
-  const hasKey = Boolean(process.env.OPENROUTER_API_KEY || env.openRouterApiKey);
+  const hasKey = Boolean(process.env.GROQ_API_KEY || env.groqApiKey);
   let meta: ProgressMeta = {};
 
   const report: ProgressFn = (step, message, extra) => {
@@ -94,7 +94,7 @@ export async function runPipeline(
   });
 
   if (!hasKey) {
-    await report("llm", "OPENROUTER_API_KEY missing; returning a description-only draft", {
+    await report("llm", "GROQ_API_KEY missing; returning a description-only draft", {
       index: 2,
       total: PIPELINE_TOTAL,
       meta,

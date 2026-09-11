@@ -9,7 +9,7 @@ Turn a pasted job description and company URL into a personalised interview kit:
 | Frontend | Next.js 15, React 19, Tailwind CSS 4 |
 | Backend | Node.js, Express 5, TypeScript |
 | Database | MongoDB (Mongoose) |
-| LLM | [OpenRouter](https://openrouter.ai) — default model `google/gemma-4-26b-a4b-it:free` (override with `OPENROUTER_MODEL`) |
+| LLM | [Groq](https://console.groq.com) — default model `openai/gpt-oss-20b` (override with `GROQ_MODEL`) |
 | Scraping | `undici` fetch + Cheerio, `robots-parser`, ranked same-origin crawl |
 
 The assignment’s preferred stack is used as-is.
@@ -26,7 +26,7 @@ The assignment’s preferred stack is used as-is.
 ```bash
 cd backend && npm install
 cp ../.env.example ../.env
-# Set OPENROUTER_API_KEY and SESSION_SECRET in .env
+# Set GROQ_API_KEY and SESSION_SECRET in .env
 npm run dev
 ```
 
@@ -51,7 +51,7 @@ npm test
 npm run evaluate -- --input cases.json --output kits.json
 ```
 
-Tests clear `OPENROUTER_API_KEY` so the HTTP suite does not call OpenRouter. With a key set, evaluate runs the full pipeline.
+Tests clear `GROQ_API_KEY` so the HTTP suite does not call Groq. With a key set, evaluate runs the full pipeline.
 
 ### Batch input format
 
@@ -78,9 +78,8 @@ For local fixture URLs, set `ALLOW_PRIVATE_URLS=true` in `.env`. In production (
 |---|---|
 | `MONGODB_URI` | MongoDB connection string |
 | `SESSION_SECRET` | Signs the httpOnly session cookie |
-| `OPENROUTER_API_KEY` | OpenRouter API key (required for full generation) |
-| `OPENROUTER_MODEL` | Model slug; default is a `:free` tier model |
-| `OPENROUTER_HTTP_REFERER` | Referer header OpenRouter expects |
+| `GROQ_API_KEY` | Groq API key from [console.groq.com/keys](https://console.groq.com/keys) |
+| `GROQ_MODEL` | Model slug; default `openai/gpt-oss-20b` (250K TPM / 1K RPM) |
 | `ALLOW_PRIVATE_URLS` | Allow `localhost` targets for evaluate fixtures |
 | `PORT` | API port (default 4000) |
 | `NEXT_PUBLIC_API_URL` | Frontend → API base URL |
@@ -93,7 +92,7 @@ backend/
   src/routes/      Express HTTP (auth, kits, practice, SSE progress)
   src/pipeline/    Shared generation orchestrator + evaluate CLI
   src/retrieval/   Fetch, robots.txt, link ranking, public discussion search
-  src/llm/         OpenRouter client with 429 backoff and JSON repair
+  src/llm/         Groq client with 429 backoff and JSON repair
   src/schemas/     Zod validation for Appendix A kit shape
   src/models/      Mongoose persistence
 ```
@@ -170,11 +169,11 @@ Regenerating a question category **keeps** `edited` and `pinned` rows and replac
 - **Deterministic schedule and coverage** — the model does not decide day allocation or gap detection.
 - **Idempotent kits** — duplicate `(jd, company_url, days)` returns the existing kit for that user.
 - **Honest thin kits** — missing company pages or thin JDs produce empty briefs and few requirements instead of fabrication.
-- **OpenRouter free tier** — sequential LLM calls with 600ms gaps and exponential backoff on 429; trade-off is slower generation vs reliability.
+- **Groq rate limits** — sequential LLM calls with 600ms gaps and exponential backoff on 429.
 
 ## Known limitations
 
-- Free OpenRouter models can rate-limit; large JDs with many requirements may leave coverage gaps under load.
+- Groq rate limits can still throttle under heavy load; large JDs may leave coverage gaps.
 - Public discussion search depends on DuckDuckGo HTML results and may return nothing.
 - PDF export uses the browser print dialog, not a server-generated file.
 - Deployment is not documented here yet; production requires `ALLOW_PRIVATE_URLS=false` and a hosted MongoDB URI.

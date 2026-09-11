@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ApiError, api } from "@/lib/api";
 import type { Flashcard, KitRecord } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const RATINGS = [
   { n: 1, label: "Guessing" },
@@ -108,38 +109,63 @@ export default function PracticePage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [revealed, current]);
 
+  const loading = record === null && !error;
   const total = record?.kit?.flashcards.length ?? 0;
   const coveredCount = covered.size;
   const percent = total ? Math.round((coveredCount / total) * 100) : 0;
 
+  if (loading) {
+    return (
+      <Shell email={email}>
+        <Skeleton className="h-4 w-16" />
+        <div className="mt-4 flex items-end justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-32" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <Skeleton className="h-4 w-10" />
+        </div>
+        <Skeleton className="mt-3 h-1 w-full" />
+        <div className="mx-auto mt-10 max-w-xl" aria-busy="true" aria-label="Loading practice">
+          <Skeleton className="h-80 w-full rounded-lg" />
+          <Skeleton className="mx-auto mt-6 h-4 w-48" />
+        </div>
+      </Shell>
+    );
+  }
+
   return (
     <Shell email={email}>
-      <p className="text-sm text-muted-foreground">
-        <Link className="underline-offset-4 hover:underline" href={`/kits/${id}`}>
-          Back to kit
-        </Link>
-      </p>
-      <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+      <Link
+        href={`/kits/${id}`}
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        ← Back
+      </Link>
+
+      <div className="mt-4 flex items-end justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight">Practice</h1>
-          <p className="mt-2 max-w-[48ch] text-sm text-muted-foreground">
-            Covered {coveredCount} of {total}. Space flips; 1–5 rates after the answer.
+          <h1 className="font-display text-3xl font-semibold tracking-tight">Practice</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {coveredCount} of {total} reviewed
           </p>
         </div>
-        <p className="text-sm tabular-nums text-muted-foreground">{percent}%</p>
+        <span className="text-sm tabular-nums text-muted-foreground">{percent}%</span>
       </div>
-      <Progress value={percent} className="mt-4" />
+      <Progress value={percent} className="mt-3 h-1" />
 
       {error && (
-        <p role="alert" className="mt-4 border border-destructive/50 bg-card px-3 py-2 text-sm">
+        <p role="alert" className="mt-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm">
           {error}
         </p>
       )}
-      {total === 0 && (
-        <p className="mt-8 text-muted-foreground">This kit has no flashcards yet.</p>
+
+      {total === 0 && record && (
+        <p className="mt-12 text-center text-muted-foreground">No flashcards in this kit.</p>
       )}
+
       {current && (
-        <div className="mx-auto mt-10 max-w-2xl">
+        <div className="mx-auto mt-10 max-w-xl">
           <FlipFlashcard
             front={current.front}
             back={current.back}
@@ -147,33 +173,38 @@ export default function PracticePage() {
             onFlip={() => setRevealed((prev) => !prev)}
             size="lg"
           />
-          <div className="mt-8">
+          <div className="mt-6">
             {revealed ? (
               <div>
-                <p className="mb-3 text-sm text-muted-foreground">How confident are you?</p>
-                <div className="flex flex-wrap gap-2">
+                <p className="mb-3 text-center text-sm text-muted-foreground">How well did you know it?</p>
+                <div className="flex flex-wrap justify-center gap-2">
                   {RATINGS.map(({ n, label }) => (
                     <Button
                       key={n}
                       type="button"
                       variant={n <= 2 ? "outline" : n === 3 ? "secondary" : "default"}
+                      size="sm"
                       onClick={() => void rate(n)}
                     >
-                      {n} {label}
+                      {n}
                     </Button>
                   ))}
                 </div>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  {RATINGS.map((r) => r.label).join(" · ")}
+                </p>
               </div>
             ) : (
-              <Button type="button" onClick={() => setRevealed(true)}>
-                Reveal answer
-              </Button>
+              <p className="text-center text-sm text-muted-foreground">
+                Tap the card or press Space to reveal
+              </p>
             )}
           </div>
         </div>
       )}
+
       {!current && total > 0 && (
-        <p className="mt-8 text-muted-foreground">No cards left in this session.</p>
+        <p className="mt-12 text-center text-muted-foreground">Session complete.</p>
       )}
     </Shell>
   );

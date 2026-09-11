@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Kit } from "../schemas/kit.js";
-import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { completeJson, wrapUntrusted } from "../llm/groq.js";
 import { BRIEF_SYSTEM } from "./prompts.js";
 
 const briefSchema = z.object({

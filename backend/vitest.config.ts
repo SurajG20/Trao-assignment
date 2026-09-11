@@ -10,7 +10,7 @@ export default defineConfig({
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
     env: {
       NODE_ENV: "test",
-      OPENROUTER_API_KEY: "",
+      GROQ_API_KEY: "",
     },
   },
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,12 +12,6 @@ import {
   requirementHasGap,
 } from "@/lib/kitCoverage";
 import { cn } from "@/lib/utils";
-
-const KIND_LABELS: Record<Requirement["kind"], string> = {
-  technical: "Technical",
-  behavioural: "Behavioural",
-  domain: "Domain",
-};
 
 function groupRequirements(requirements: Requirement[]) {
   const must = requirements.filter((r) => r.priority === "must");
@@ -41,53 +35,27 @@ function RequirementRow({
   return (
     <li
       className={cn(
-        "grid gap-3 py-3 sm:grid-cols-[auto_1fr_auto]",
-        mustGap && "border-l-2 border-mark pl-3",
+        "flex items-start justify-between gap-4 py-3.5",
+        mustGap && "border-l-2 border-amber-400 pl-3",
       )}
     >
-      <span className="pt-0.5 font-mono text-xs text-muted-foreground">{req.id}</span>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="leading-relaxed">{req.text}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <Badge variant="secondary">{KIND_LABELS[req.kind]}</Badge>
-          {req.priority === "must" ? (
-            <Badge>Must-have</Badge>
-          ) : (
-            <Badge variant="outline">Nice-to-have</Badge>
-          )}
-        </div>
-        {qs.length > 0 && (
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            {qs.map((q) => (
-              <li key={q.id}>
-                {onJumpToQuestions ? (
-                  <button
-                    type="button"
-                    className="text-left hover:text-foreground hover:underline"
-                    onClick={() => onJumpToQuestions(q.id)}
-                  >
-                    {q.id}: {q.prompt}
-                  </button>
-                ) : (
-                  <span>{q.id}: {q.prompt}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+        {qs.length > 0 && onJumpToQuestions && (
+          <button
+            type="button"
+            className="mt-2 text-sm text-primary hover:underline"
+            onClick={() => onJumpToQuestions(qs[0].id)}
+          >
+            View {qs.length} question{qs.length === 1 ? "" : "s"}
+          </button>
         )}
       </div>
-      <div className="sm:text-right">
+      <div className="shrink-0 text-right">
         {gap ? (
-          <span
-            className={cn(
-              "text-xs",
-              mustGap ? "font-medium text-foreground" : "text-muted-foreground",
-            )}
-          >
-            {mustGap ? "No questions yet" : "Uncovered"}
-          </span>
+          <span className="text-xs text-amber-700">{mustGap ? "No questions" : "Uncovered"}</span>
         ) : (
-          <span className="text-xs text-pine">{qs.length} question{qs.length === 1 ? "" : "s"}</span>
+          <span className="text-xs text-pine">Covered</span>
         )}
       </div>
     </li>
@@ -96,14 +64,12 @@ function RequirementRow({
 
 function RequirementGroup({
   title,
-  description,
   requirements,
   kit,
   gapsOnly,
   onJumpToQuestions,
 }: {
   title: string;
-  description: string;
   requirements: Requirement[];
   kit: KitPayload;
   gapsOnly: boolean;
@@ -115,25 +81,13 @@ function RequirementGroup({
 
   if (requirements.length === 0) return null;
 
-  const gapCount = requirements.filter((req) => isMustHaveGap(kit, req)).length;
-
   return (
-    <section>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="font-display text-lg font-medium">{title}</h3>
-        {gapCount > 0 && (
-          <span className="text-sm text-muted-foreground">
-            {gapCount} must-have gap{gapCount === 1 ? "" : "s"}
-          </span>
-        )}
-      </div>
-      <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">{description}</p>
+    <section className="panel p-5 sm:p-6">
+      <h3 className="font-display text-lg font-medium">{title}</h3>
       {visible.length === 0 ? (
-        <p className="mt-4 text-sm text-muted-foreground">
-          {gapsOnly ? "Every must-have in this group has at least one question." : "None listed."}
-        </p>
+        <p className="mt-3 text-sm text-muted-foreground">All must-haves have questions.</p>
       ) : (
-        <ul className="mt-3 divide-y divide-border border-y border-border">
+        <ul className="mt-3 divide-y divide-border">
           {visible.map((req) => (
             <RequirementRow
               key={req.id}
@@ -167,13 +121,13 @@ export function RoleTab({
   }
 
   return (
-    <section className="mt-8 space-y-10">
-      <div className="grid gap-4 sm:grid-cols-2">
+    <section className="mt-6 space-y-4">
+      <div className="panel grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
         <div className="grid gap-2">
           <Label htmlFor="role-title">Title</Label>
           <Input
             id="role-title"
-            className="font-display text-lg"
+            className="border-0 bg-secondary/50 font-display text-lg shadow-none focus-visible:ring-1"
             value={role.title}
             onChange={(e) => updateRole({ title: e.target.value })}
           />
@@ -182,6 +136,7 @@ export function RoleTab({
           <Label htmlFor="role-seniority">Seniority</Label>
           <Input
             id="role-seniority"
+            className="border-0 bg-secondary/50 shadow-none focus-visible:ring-1"
             placeholder="e.g. senior"
             value={role.seniority}
             onChange={(e) => updateRole({ seniority: e.target.value })}
@@ -189,7 +144,7 @@ export function RoleTab({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="panel p-5 sm:p-6">
         <div className="flex items-center justify-between">
           <Label>Responsibilities</Label>
           <Button
@@ -201,83 +156,77 @@ export function RoleTab({
             Add
           </Button>
         </div>
-        {role.responsibilities.length === 0 && (
-          <p className="text-sm text-muted-foreground">None extracted from the posting.</p>
+        {role.responsibilities.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">None extracted.</p>
+        ) : (
+          <ul className="mt-3 space-y-2">
+            {role.responsibilities.map((item, index) => (
+              <li key={index} className="flex gap-2">
+                <Input
+                  className="border-0 bg-secondary/50 shadow-none focus-visible:ring-1"
+                  value={item}
+                  onChange={(e) => {
+                    const next = role.responsibilities.slice();
+                    next[index] = e.target.value;
+                    updateRole({ responsibilities: next });
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() =>
+                    updateRole({
+                      responsibilities: role.responsibilities.filter((_, i) => i !== index),
+                    })
+                  }
+                >
+                  <X className="size-4" />
+                  <span className="sr-only">Remove</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
         )}
-        <ul className="space-y-2">
-          {role.responsibilities.map((item, index) => (
-            <li key={index} className="flex gap-2">
-              <Input
-                value={item}
-                onChange={(e) => {
-                  const next = role.responsibilities.slice();
-                  next[index] = e.target.value;
-                  updateRole({ responsibilities: next });
-                }}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  updateRole({
-                    responsibilities: role.responsibilities.filter((_, i) => i !== index),
-                  })
-                }
-              >
-                Remove
-              </Button>
-            </li>
-          ))}
-        </ul>
       </div>
 
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl font-medium">Requirements</h2>
-            <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">
-              Must-haves need at least one linked question. Nice-to-haves are tracked but do not
-              count toward coverage.
-            </p>
-          </div>
-          {mustGaps > 0 && (
-            <Button
-              type="button"
-              variant={gapsOnly ? "default" : "outline"}
-              size="sm"
-              onClick={() => setGapsOnly((prev) => !prev)}
-            >
-              {gapsOnly ? "Show all" : `Show ${mustGaps} gap${mustGaps === 1 ? "" : "s"}`}
-            </Button>
-          )}
-        </div>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="font-display text-lg font-medium">Requirements</h2>
+        {mustGaps > 0 && (
+          <Button
+            type="button"
+            variant={gapsOnly ? "default" : "outline"}
+            size="sm"
+            onClick={() => setGapsOnly((prev) => !prev)}
+          >
+            {gapsOnly ? "Show all" : `${mustGaps} gap${mustGaps === 1 ? "" : "s"}`}
+          </Button>
+        )}
+      </div>
 
-        {role.requirements.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No requirements extracted — the posting was too thin to invent any.
-          </p>
-        ) : (
-          <div className="space-y-10">
-            <RequirementGroup
-              title="Must-haves"
-              description="These came from required language in the posting. Each needs a question before you are fully covered."
-              requirements={groups.must}
-              kit={kit}
-              gapsOnly={gapsOnly}
-              onJumpToQuestions={onJumpToQuestions}
-            />
+      {role.requirements.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No requirements extracted from the posting.</p>
+      ) : (
+        <div className="space-y-4">
+          <RequirementGroup
+            title="Must-haves"
+            requirements={groups.must}
+            kit={kit}
+            gapsOnly={gapsOnly}
+            onJumpToQuestions={onJumpToQuestions}
+          />
+          {groups.nice.length > 0 && (
             <RequirementGroup
               title="Nice-to-haves"
-              description="Preferred skills or bonus experience. Helpful to prepare, but not part of the coverage bar."
               requirements={groups.nice}
               kit={kit}
               gapsOnly={false}
               onJumpToQuestions={onJumpToQuestions}
             />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </section>
   );
 }
