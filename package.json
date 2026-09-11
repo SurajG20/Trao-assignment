@@ -1,0 +1,10 @@
+{
+  "name": "trao-assignment",
+  "private": true,
+  "scripts": {
+    "start": "npm run start --prefix backend",
+    "dev": "npm run dev --prefix backend",
+    "test": "npm test --prefix backend",
+    "evaluate": "npm run evaluate --prefix backend --"
+  }
+}
