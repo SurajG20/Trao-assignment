@@ -179,4 +179,42 @@ describe("HTTP APIs", () => {
     expect(badUrl.status).toBe(400);
     expect(badUrl.body.error.code).toBe("INVALID_INPUT");
   });
+
+  it("regenerates a schedule without dropping a hand-edited question", async () => {
+    const agent = request.agent(app);
+    await agent.post("/api/auth/register").send({
+      email: "ada@example.com",
+      password: "password12",
+    });
+    const created = await agent.post("/api/kits").send({
+      jd: "Engineer\nRequirements:\n- React",
+      company_url: "https://example.com",
+      days: 3,
+    });
+    const ready = await waitUntil(agent, created.body.kit.id, "ready");
+    const patched = await agent.patch(`/api/kits/${ready.id}`).send({
+      kit: {
+        questions: [
+          {
+            id: "q-hand",
+            requirement_ids: [],
+            category: "technical",
+            prompt: "What would you change about our API?",
+            answer_outline: "Talk about versioning.",
+            difficulty: 2,
+          },
+        ],
+      },
+    });
+    expect(patched.body.kit.itemState["q-hand"]).toBe("pinned");
+
+    const regen = await agent
+      .post(`/api/kits/${ready.id}/regenerate`)
+      .send({ section: "schedule" });
+    expect(regen.status).toBe(200);
+    expect(regen.body.kit.kit.questions.some((q: { id: string }) => q.id === "q-hand")).toBe(
+      true,
+    );
+    expect(regen.body.kit.kit.schedule.days).toHaveLength(3);
+  });
 });

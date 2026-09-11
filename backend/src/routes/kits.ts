@@ -5,6 +5,7 @@ import { KitRecord } from "../models/kit.js";
 import { appError } from "../errors.js";
 import { inputHash, requireAuth } from "../middleware/auth.js";
 import { runPipeline } from "../pipeline/run.js";
+import { regenerateSection } from "../pipeline/regenerate.js";
 import { kitSchema } from "../schemas/kit.js";
 
 const createSchema = z.object({
@@ -219,13 +220,69 @@ kitsRouter.patch("/:id", async (req, res, next) => {
       })
       .parse(req.body);
     if (patch.kit) {
+      const previousQuestions = kit.kit.questions;
       kit.kit = { ...kit.kit, ...patch.kit };
+      if (patch.kit.questions) {
+        const prevById = new Map(previousQuestions.map((q) => [q.id, q]));
+        for (const q of patch.kit.questions) {
+          const prev = prevById.get(q.id);
+          if (!prev) kit.itemState[q.id] = "pinned";
+          else if (
+            prev.prompt !== q.prompt ||
+            prev.answer_outline !== q.answer_outline ||
+            prev.category !== q.category
+          ) {
+            kit.itemState[q.id] = "edited";
+          }
+        }
+      }
     }
     if (patch.itemState) {
       kit.itemState = { ...kit.itemState, ...patch.itemState };
     }
     await kit.save();
     res.json({ kit: publicKit(kit) });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      next(appError(400, "INVALID_INPUT", err.issues[0]?.message ?? "Invalid input"));
+      return;
+    }
+    next(err);
+  }
+});
+
+kitsRouter.post("/:id/regenerate", async (req, res, next) => {
+  try {
+    const body = z
+      .object({
+        section: z.enum([
+          "company_brief",
+          "schedule",
+          "technical",
+          "behavioural",
+          "system-design",
+          "company-fit",
+        ]),
+      })
+      .parse(req.body);
+    const record = await KitRecord.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!record?.kit) {
+      next(appError(404, "NOT_FOUND", "Kit not found"));
+      return;
+    }
+    const updated = await regenerateSection({
+      kit: record.kit,
+      itemState: record.itemState ?? {},
+      section: body.section,
+      input: record.input,
+    });
+    record.kit = updated.kit;
+    record.itemState = updated.itemState;
+    await record.save();
+    res.json({ kit: publicKit(record) });
   } catch (err) {
     if (err instanceof z.ZodError) {
       next(appError(400, "INVALID_INPUT", err.issues[0]?.message ?? "Invalid input"));
