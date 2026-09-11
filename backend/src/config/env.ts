@@ -42,4 +42,6 @@ export const env = {
   ),
 };
 
-export const isProduction = env.nodeEnv === "production";
+// Render does not always set NODE_ENV=production; RENDER=true is always present there.
+export const isProduction =
+  env.nodeEnv === "production" || process.env.RENDER === "true";
