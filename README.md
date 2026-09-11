@@ -11,6 +11,16 @@ cp ../.env.example ../.env
 npm run dev
 ```
 
+Frontend (second terminal):
+
+```bash
+cd frontend && npm install
+cp .env.example .env.local
+npm run dev
+```
+
+Open http://localhost:3000. The API must already be running on port 4000.
+
 From the repo root:
 
 ```bash
