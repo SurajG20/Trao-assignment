@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env.js";
+import { env, isProduction } from "../config/env.js";
 import { User } from "../models/user.js";
 import { appError } from "../errors.js";
 
@@ -15,18 +15,22 @@ export function signSession(userId: string) {
   });
 }
 
-export function setSessionCookie(res: Response, token: string) {
-  res.cookie(SESSION_COOKIE, token, {
+function sessionCookieOptions() {
+  return {
     httpOnly: true,
-    sameSite: "lax",
-    secure: env.nodeEnv === "production",
+    sameSite: isProduction ? ("none" as const) : ("lax" as const),
+    secure: isProduction,
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: "/",
-  });
+  };
+}
+
+export function setSessionCookie(res: Response, token: string) {
+  res.cookie(SESSION_COOKIE, token, sessionCookieOptions());
 }
 
 export function clearSessionCookie(res: Response) {
-  res.clearCookie(SESSION_COOKIE, { path: "/" });
+  res.clearCookie(SESSION_COOKIE, sessionCookieOptions());
 }
 
 export async function requireAuth(

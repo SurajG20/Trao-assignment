@@ -20,6 +20,14 @@ function bool(name: string, fallback: boolean): boolean {
   return raw === "true" || raw === "1";
 }
 
+function origins(name: string, fallback: string): string[] {
+  const raw = process.env[name] ?? fallback;
+  return raw
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   port: Number(process.env.PORT ?? 4000),
@@ -28,6 +36,10 @@ export const env = {
   groqApiKey: process.env.GROQ_API_KEY ?? "",
   groqModel: process.env.GROQ_MODEL ?? "openai/gpt-oss-20b",
   allowPrivateUrls: bool("ALLOW_PRIVATE_URLS", true),
+  corsOrigins: origins(
+    "CORS_ORIGINS",
+    "http://localhost:3000,https://trao-assignment-ruby.vercel.app",
+  ),
 };
 
 export const isProduction = env.nodeEnv === "production";
