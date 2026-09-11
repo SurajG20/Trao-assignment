@@ -8,5 +8,9 @@ export default defineConfig({
     hookTimeout: 120_000,
     setupFiles: ["tests/setup-env.ts"],
     include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
+    env: {
+      NODE_ENV: "test",
+      OPENROUTER_API_KEY: "",
+    },
   },
 });

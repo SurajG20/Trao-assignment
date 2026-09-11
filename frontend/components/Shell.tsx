@@ -1,8 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { Brand } from "@/components/Brand";
+import { Button } from "@/components/ui/button";
 
 export function Shell({
   email,
@@ -18,26 +19,22 @@ export function Shell({
   }
   return (
     <div className="min-h-screen">
-      <header className="border-b border-zinc-200 bg-white">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/kits" className="font-semibold tracking-tight">
-            Interview Prep Kit
-          </Link>
+      <header className="border-b border-border/70">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+          <Brand />
           <nav className="flex items-center gap-3 text-sm">
-            <Link className="hover:underline" href="/kits">
-              Kits
-            </Link>
-            <Link className="hover:underline" href="/kits/new">
-              New kit
-            </Link>
-            {email && <span className="hidden text-zinc-500 sm:inline">{email}</span>}
-            <button type="button" className="text-teal-800 hover:underline" onClick={logout}>
+            {email && (
+              <span className="hidden max-w-48 truncate text-muted-foreground sm:inline">
+                {email}
+              </span>
+            )}
+            <Button type="button" variant="ghost" size="sm" onClick={logout}>
               Sign out
-            </button>
+            </Button>
           </nav>
         </div>
       </header>
-      <div id="main" className="mx-auto max-w-5xl px-4 py-8">
+      <div id="main" className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         {children}
       </div>
     </div>

@@ -5,6 +5,7 @@ import {
   type Requirement,
 } from "../schemas/kit.js";
 import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { questionsSystem } from "./prompts.js";
 
 const questionsSchema = z.object({
   questions: z
@@ -31,10 +32,10 @@ export async function generateQuestionsForCategory(args: {
     return { questions: [], nextId: args.nextId };
   }
   const parsed = await completeJson(
-    `Generate likely interview questions for the ${args.category} category only. Each question must reference requirement ids that it actually tests. Do not invent requirements. Use hiring process notes when they affect the round type. difficulty is 1, 2, or 3.`,
+    questionsSystem(args.category),
     [
       wrapUntrusted("REQUIREMENTS", JSON.stringify(args.requirements)),
-      wrapUntrusted("JOB_DESCRIPTION", args.jd),
+      wrapUntrusted("JOB_DESCRIPTION", args.jd.slice(0, 8000)),
       wrapUntrusted("HIRING_AND_COMPANY_NOTES", args.hiringNotes || "None found."),
       wrapUntrusted(
         "EXISTING_QUESTIONS",
@@ -47,11 +48,9 @@ export async function generateQuestionsForCategory(args: {
   const validIds = new Set(args.requirements.map((r) => r.id));
   const questions: Question[] = [];
   let nextId = args.nextId;
-  for (const q of parsed.questions) {
+  for (const q of parsed.questions.slice(0, 4)) {
+    if (!q.prompt.trim()) continue;
     const requirement_ids = q.requirement_ids.filter((id) => validIds.has(id));
-    if (requirement_ids.length === 0 && args.requirements.length > 0) {
-      requirement_ids.push(args.requirements[0].id);
-    }
     questions.push({
       id: `q${nextId}`,
       requirement_ids,

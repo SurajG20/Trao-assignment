@@ -4,8 +4,17 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Shell } from "@/components/Shell";
+import { GenerationProgress } from "@/components/GenerationProgress";
+import { BriefTab } from "@/components/kit/BriefTab";
+import { CoverageBanner } from "@/components/kit/CoverageBanner";
+import { FlashcardsTab } from "@/components/kit/FlashcardsTab";
+import { RoleTab } from "@/components/kit/RoleTab";
+import { ScheduleTab } from "@/components/kit/ScheduleTab";
+import { Button } from "@/components/ui/button";
+import { exportKitPdf } from "@/lib/exportKitPdf";
 import { ApiError, api } from "@/lib/api";
 import type { KitPayload, KitRecord, Question, QuestionCategory } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const CATEGORIES: QuestionCategory[] = [
   "technical",
@@ -14,14 +23,23 @@ const CATEGORIES: QuestionCategory[] = [
   "company-fit",
 ];
 
+const TABS = [
+  ["brief", "Company brief"],
+  ["role", "Role"],
+  ["questions", "Questions"],
+  ["cards", "Flashcards"],
+  ["schedule", "Schedule"],
+] as const;
+
 export default function KitDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [record, setRecord] = useState<KitRecord | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<"brief" | "role" | "questions" | "cards" | "schedule">("brief");
+  const [tab, setTab] = useState<(typeof TABS)[number][0]>("brief");
   const [regenBusy, setRegenBusy] = useState<string | null>(null);
+  const [highlightQuestion, setHighlightQuestion] = useState<string | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refresh = useCallback(async () => {
@@ -76,75 +94,74 @@ export default function KitDetailPage() {
   }
 
   const kit = record?.kit;
-  const generating = record?.status === "queued" || record?.status === "running";
+
+  useEffect(() => {
+    if (!highlightQuestion || tab !== "questions") return;
+    const el = document.getElementById(`question-${highlightQuestion}`);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightQuestion, tab]);
 
   return (
     <Shell email={email}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <p className="text-sm text-muted-foreground">
+        <Link className="underline-offset-4 hover:underline" href="/kits">
+          Kits
+        </Link>
+        <span aria-hidden className="mx-2 text-border">
+          /
+        </span>
+        {kit?.role.title || "Generating"}
+      </p>
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-sm text-zinc-500">
-            <Link className="hover:underline" href="/kits">
-              Kits
-            </Link>
-            <span aria-hidden> / </span>
-            {kit?.role.title || "Generating"}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold">{kit?.role.title || "Interview kit"}</h1>
+          <h1 className="font-display text-4xl font-semibold tracking-tight">
+            {kit?.role.title || "Interview kit"}
+          </h1>
+          {kit?.source.company && (
+            <p className="mt-1 text-muted-foreground">{kit.source.company}</p>
+          )}
         </div>
         {kit && (
-          <Link
-            href={`/kits/${id}/practice`}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm hover:border-zinc-500"
-          >
-            Practice flashcards
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" onClick={() => exportKitPdf(kit)}>
+              Export PDF
+            </Button>
+            <Button asChild>
+              <Link href={`/kits/${id}/practice`}>Practice flashcards</Link>
+            </Button>
+          </div>
         )}
       </div>
 
       {error && (
-        <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm">
+        <p role="alert" className="mt-4 border border-destructive/50 bg-card px-3 py-2 text-sm">
           {error}
         </p>
       )}
 
-      {generating && (
-        <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3" aria-live="polite">
-          <p className="font-medium">Generating kit…</p>
-          <p className="mt-1 text-sm text-amber-900">
-            {record?.progress?.message || record?.progress?.step || "Working"}
-          </p>
-        </div>
-      )}
+      {record && <GenerationProgress record={record} />}
 
-      {record?.status === "failed" && (
-        <div className="mt-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3" role="alert">
-          <p className="font-medium">Generation failed</p>
-          <p className="mt-1 text-sm">{record.error?.message || "Unknown error"}</p>
-        </div>
-      )}
-
-      {!record && !error && <p className="mt-8 text-zinc-500">Loading kit…</p>}
+      {!record && !error && <p className="mt-8 text-muted-foreground">Loading kit…</p>}
 
       {kit && (
         <>
-          <div className="mt-6 flex flex-wrap gap-2" role="tablist" aria-label="Kit sections">
-            {(
-              [
-                ["brief", "Company brief"],
-                ["role", "Role"],
-                ["questions", "Questions"],
-                ["cards", "Flashcards"],
-                ["schedule", "Schedule"],
-              ] as const
-            ).map(([key, label]) => (
+          <div
+            className="mt-10 flex flex-wrap gap-x-6 gap-y-2 border-b border-border"
+            role="tablist"
+            aria-label="Kit sections"
+          >
+            {TABS.map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 role="tab"
                 aria-selected={tab === key}
-                className={`rounded-full px-3 py-1.5 text-sm ${
-                  tab === key ? "bg-zinc-900 text-white" : "bg-white text-zinc-700 ring-1 ring-zinc-300"
-                }`}
+                className={cn(
+                  "-mb-px border-b-2 pb-2 text-sm",
+                  tab === key
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
                 onClick={() => setTab(key)}
               >
                 {label}
@@ -152,60 +169,26 @@ export default function KitDetailPage() {
             ))}
           </div>
 
+          <CoverageBanner kit={kit} />
+
           {tab === "brief" && (
-            <section className="mt-6 space-y-4">
-              <RegenBar
-                busy={regenBusy === "company_brief"}
-                onClick={() => regen("company_brief")}
-                label="Regenerate brief"
-              />
-              <Field
-                label="Summary"
-                value={kit.company_brief.summary}
-                onChange={(summary) =>
-                  queueSave({ ...kit, company_brief: { ...kit.company_brief, summary } })
-                }
-              />
-              <Field
-                label="What they do"
-                value={kit.company_brief.what_they_do}
-                onChange={(what_they_do) =>
-                  queueSave({ ...kit, company_brief: { ...kit.company_brief, what_they_do } })
-                }
-              />
-              <ul className="text-sm text-zinc-600">
-                {kit.company_brief.sources.map((src) => (
-                  <li key={src}>
-                    <a className="underline" href={src} target="_blank" rel="noreferrer">
-                      {src}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </section>
+            <BriefTab
+              kit={kit}
+              busy={regenBusy === "company_brief"}
+              onChange={queueSave}
+              onRegen={() => regen("company_brief")}
+            />
           )}
 
           {tab === "role" && (
-            <section className="mt-6 space-y-4">
-              <p className="text-sm text-zinc-600">
-                {kit.role.seniority && <span>Seniority: {kit.role.seniority}. </span>}
-                Coverage passes: {kit.coverage.passes}. Uncovered:{" "}
-                {kit.coverage.uncovered_requirement_ids.join(", ") || "none"}.
-              </p>
-              <ul className="space-y-2">
-                {kit.role.requirements.map((req) => (
-                  <li key={req.id} className="rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm">
-                    <span className="font-mono text-xs text-zinc-500">{req.id}</span>{" "}
-                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{req.priority}</span>{" "}
-                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs">{req.kind}</span>
-                    <p className="mt-1">{req.text}</p>
-                  </li>
-                ))}
-                {kit.role.requirements.length === 0 && (
-                  <li className="text-sm text-zinc-500">No requirements extracted — the posting was too thin to invent any.</li>
-                )}
-              </ul>
-            </section>
+            <RoleTab
+              kit={kit}
+              onChange={queueSave}
+              onJumpToQuestions={(questionId) => {
+                setHighlightQuestion(questionId);
+                setTab("questions");
+              }}
+            />
           )}
 
           {tab === "questions" && (
@@ -213,93 +196,22 @@ export default function KitDetailPage() {
               kit={kit}
               itemState={record?.itemState ?? {}}
               regenBusy={regenBusy}
+              highlightId={highlightQuestion}
               onRegen={regen}
               onChange={queueSave}
             />
           )}
 
           {tab === "cards" && (
-            <section className="mt-6 space-y-3">
-              {kit.flashcards.map((card, index) => (
-                <article key={card.id} className="rounded-md border border-zinc-200 bg-white p-3">
-                  <Field
-                    label="Front"
-                    value={card.front}
-                    onChange={(front) => {
-                      const flashcards = kit.flashcards.slice();
-                      flashcards[index] = { ...card, front };
-                      queueSave({ ...kit, flashcards });
-                    }}
-                  />
-                  <div className="mt-2">
-                    <Field
-                      label="Back"
-                      value={card.back}
-                      onChange={(back) => {
-                        const flashcards = kit.flashcards.slice();
-                        flashcards[index] = { ...card, back };
-                        queueSave({ ...kit, flashcards });
-                      }}
-                    />
-                  </div>
-                  <button
-                    type="button"
-                    className="mt-2 text-sm text-red-700 hover:underline"
-                    onClick={() =>
-                      queueSave({
-                        ...kit,
-                        flashcards: kit.flashcards.filter((c) => c.id !== card.id),
-                      })
-                    }
-                  >
-                    Delete card
-                  </button>
-                </article>
-              ))}
-              <button
-                type="button"
-                className="rounded-md border border-zinc-300 px-3 py-2 text-sm"
-                onClick={() =>
-                  queueSave({
-                    ...kit,
-                    flashcards: [
-                      ...kit.flashcards,
-                      {
-                        id: `f-user-${Date.now()}`,
-                        front: "New prompt",
-                        back: "Answer",
-                        requirement_ids: [],
-                      },
-                    ],
-                  })
-                }
-              >
-                Add flashcard
-              </button>
-            </section>
+            <FlashcardsTab kit={kit} kitId={id} onChange={queueSave} />
           )}
 
           {tab === "schedule" && (
-            <section className="mt-6 space-y-4">
-              <RegenBar
-                busy={regenBusy === "schedule"}
-                onClick={() => regen("schedule")}
-                label="Rebuild schedule"
-              />
-              <ol className="space-y-3">
-                {kit.schedule.days.map((day) => (
-                  <li key={day.day} className="rounded-md border border-zinc-200 bg-white px-3 py-2">
-                    <p className="font-medium">
-                      Day {day.day} · {day.minutes} min
-                    </p>
-                    <p className="text-sm text-zinc-600">{day.focus}</p>
-                    <p className="mt-1 font-mono text-xs text-zinc-500">
-                      {day.question_ids.join(", ") || "No questions"}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            </section>
+            <ScheduleTab
+              kit={kit}
+              busy={regenBusy === "schedule"}
+              onRegen={() => regen("schedule")}
+            />
           )}
         </>
       )}
@@ -317,14 +229,9 @@ function RegenBar({
   label: string;
 }) {
   return (
-    <button
-      type="button"
-      disabled={busy}
-      onClick={onClick}
-      className="rounded-md border border-zinc-300 bg-white px-3 py-1.5 text-sm disabled:opacity-50"
-    >
+    <Button type="button" variant="outline" size="sm" disabled={busy} onClick={onClick}>
       {busy ? "Regenerating…" : label}
-    </button>
+    </Button>
   );
 }
 
@@ -332,16 +239,18 @@ function Field({
   label,
   value,
   onChange,
+  className,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }) {
   return (
-    <label className="block text-sm font-medium">
+    <label className={cn("block text-sm font-medium", className)}>
       {label}
       <textarea
-        className="mt-1 min-h-24 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-normal"
+        className="mt-1 min-h-24 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-normal leading-relaxed"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -353,12 +262,14 @@ function QuestionsPanel({
   kit,
   itemState,
   regenBusy,
+  highlightId,
   onRegen,
   onChange,
 }: {
   kit: KitPayload;
   itemState: Record<string, string>;
   regenBusy: string | null;
+  highlightId?: string | null;
   onRegen: (section: string) => void;
   onChange: (kit: KitPayload) => void;
 }) {
@@ -388,11 +299,13 @@ function QuestionsPanel({
   }
 
   return (
-    <section className="mt-6 space-y-8">
+    <section className="mt-8 space-y-12">
       {CATEGORIES.map((category) => (
         <div key={category}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-medium capitalize">{category.replace("-", " ")}</h2>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-display text-2xl font-medium capitalize">
+              {category.replace("-", " ")}
+            </h2>
             <RegenBar
               busy={regenBusy === category}
               onClick={() => onRegen(category)}
@@ -400,18 +313,25 @@ function QuestionsPanel({
             />
           </div>
           {grouped[category].length === 0 && (
-            <p className="text-sm text-zinc-500">No questions in this category yet.</p>
+            <p className="text-sm text-muted-foreground">No questions in this category yet.</p>
           )}
-          <ul className="space-y-3">
+          <ul className="space-y-8">
             {grouped[category].map((q) => (
-              <li key={q.id} className="rounded-md border border-zinc-200 bg-white p-3">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-                  <span className="font-mono">{q.id}</span>
+              <li
+                key={q.id}
+                id={`question-${q.id}`}
+                className={cn(
+                  "border-t border-border pt-4",
+                  highlightId === q.id && "bg-mark/20 -mx-2 px-2",
+                )}
+              >
+                <div className="mb-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span>{q.id}</span>
                   <span>{itemState[q.id] || "generated"}</span>
                   <label>
                     Category
                     <select
-                      className="ml-1 rounded border border-zinc-300 bg-white px-1 py-0.5"
+                      className="ml-1 rounded-md border border-input bg-card px-1 py-0.5"
                       value={q.category}
                       onChange={(e) =>
                         updateQuestion(q.id, { category: e.target.value as QuestionCategory })
@@ -432,7 +352,7 @@ function QuestionsPanel({
                   </button>
                   <button
                     type="button"
-                    className="text-red-700 hover:underline"
+                    className="text-destructive hover:underline"
                     onClick={() =>
                       onChange({ ...kit, questions: kit.questions.filter((x) => x.id !== q.id) })
                     }
@@ -440,14 +360,15 @@ function QuestionsPanel({
                     Delete
                   </button>
                 </div>
-                <Field
-                  label="Prompt"
-                  value={q.prompt}
-                  onChange={(prompt) => updateQuestion(q.id, { prompt })}
-                />
-                <div className="mt-2">
+                <div className="grid gap-4 lg:grid-cols-2">
                   <Field
-                    label="Answer outline"
+                    label="They ask"
+                    value={q.prompt}
+                    className="font-display"
+                    onChange={(prompt) => updateQuestion(q.id, { prompt })}
+                  />
+                  <Field
+                    label="You answer"
                     value={q.answer_outline}
                     onChange={(answer_outline) => updateQuestion(q.id, { answer_outline })}
                   />
@@ -455,9 +376,11 @@ function QuestionsPanel({
               </li>
             ))}
           </ul>
-          <button
+          <Button
             type="button"
-            className="mt-2 rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+            variant="outline"
+            size="sm"
+            className="mt-4"
             onClick={() =>
               onChange({
                 ...kit,
@@ -476,7 +399,7 @@ function QuestionsPanel({
             }
           >
             Add {category} question
-          </button>
+          </Button>
         </div>
       ))}
     </section>

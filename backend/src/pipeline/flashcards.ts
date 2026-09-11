@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Flashcard, Question, Requirement } from "../schemas/kit.js";
 import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { FLASHCARD_SYSTEM } from "./prompts.js";
 
 const cardsSchema = z.object({
   flashcards: z
@@ -18,14 +19,15 @@ export async function generateFlashcards(
   requirements: Requirement[],
   questions: Question[],
 ): Promise<Flashcard[]> {
-  if (requirements.length === 0 && questions.length === 0) return [];
+  const musts = requirements.filter((r) => r.priority === "must");
+  if (musts.length === 0 && questions.length === 0) return [];
   try {
     const parsed = await completeJson(
-      "Create concise flashcards for interview prep. Each card should test a requirement id when possible.",
+      FLASHCARD_SYSTEM,
       wrapUntrusted(
         "MATERIAL",
         JSON.stringify({
-          requirements,
+          requirements: musts.length ? musts : requirements,
           questions: questions.map((q) => ({
             id: q.id,
             prompt: q.prompt,
@@ -42,8 +44,9 @@ export async function generateFlashcards(
       back: card.back,
       requirement_ids: card.requirement_ids.filter((id) => valid.has(id)),
     }));
-  } catch {
-    return requirements.map((req, i) => ({
+  } catch (err) {
+    console.warn("generateFlashcards LLM failed; using requirement cues", err);
+    return (musts.length ? musts : requirements).map((req, i) => ({
       id: `f${i + 1}`,
       front: req.text,
       back: `Be ready to discuss: ${req.text}`,

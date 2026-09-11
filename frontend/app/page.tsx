@@ -13,7 +13,7 @@ export default function HomePage() {
       .catch(() => router.replace("/login"));
   }, [router]);
   return (
-    <main id="main" className="grid min-h-screen place-items-center text-zinc-500">
+    <main id="main" className="grid min-h-screen place-items-center text-muted-foreground">
       Loading…
     </main>
   );

@@ -3,9 +3,20 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { FlipFlashcard } from "@/components/Flashcard";
 import { Shell } from "@/components/Shell";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
 import { ApiError, api } from "@/lib/api";
 import type { Flashcard, KitRecord } from "@/lib/types";
+
+const RATINGS = [
+  { n: 1, label: "Guessing" },
+  { n: 2, label: "Shaky" },
+  { n: 3, label: "Okay" },
+  { n: 4, label: "Solid" },
+  { n: 5, label: "Ready" },
+] as const;
 
 export default function PracticePage() {
   const { id } = useParams<{ id: string }>();
@@ -89,72 +100,81 @@ export default function PracticePage() {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        setRevealed(true);
+        setRevealed((prev) => !prev);
       }
+      if (revealed && e.key >= "1" && e.key <= "5") void rate(Number(e.key));
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, []);
+  }, [revealed, current]);
 
   const total = record?.kit?.flashcards.length ?? 0;
+  const coveredCount = covered.size;
+  const percent = total ? Math.round((coveredCount / total) * 100) : 0;
 
   return (
     <Shell email={email}>
-      <p className="text-sm text-zinc-500">
-        <Link className="hover:underline" href={`/kits/${id}`}>
+      <p className="text-sm text-muted-foreground">
+        <Link className="underline-offset-4 hover:underline" href={`/kits/${id}`}>
           Back to kit
         </Link>
       </p>
-      <h1 className="mt-2 text-2xl font-semibold">Practice</h1>
-      <p className="mt-1 text-sm text-zinc-600">
-        Covered {covered.size} of {total}. Next cards are least confident first. Enter reveals; 1–5 rates.
-      </p>
+      <div className="mt-3 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="font-display text-4xl font-semibold tracking-tight">Practice</h1>
+          <p className="mt-2 max-w-[48ch] text-sm text-muted-foreground">
+            Covered {coveredCount} of {total}. Space flips; 1–5 rates after the answer.
+          </p>
+        </div>
+        <p className="text-sm tabular-nums text-muted-foreground">{percent}%</p>
+      </div>
+      <Progress value={percent} className="mt-4" />
+
       {error && (
-        <p role="alert" className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm">
+        <p role="alert" className="mt-4 border border-destructive/50 bg-card px-3 py-2 text-sm">
           {error}
         </p>
       )}
-      {total === 0 && <p className="mt-8 text-zinc-500">This kit has no flashcards yet.</p>}
+      {total === 0 && (
+        <p className="mt-8 text-muted-foreground">This kit has no flashcards yet.</p>
+      )}
       {current && (
-        <div
-          className="mt-8 rounded-xl border border-zinc-200 bg-white p-6"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (revealed && e.key >= "1" && e.key <= "5") void rate(Number(e.key));
-          }}
-        >
-          <p className="text-xs uppercase tracking-wide text-zinc-500">Front</p>
-          <p className="mt-2 text-lg">{current.front}</p>
-          {revealed ? (
-            <>
-              <p className="mt-6 text-xs uppercase tracking-wide text-zinc-500">Back</p>
-              <p className="mt-2">{current.back}</p>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    className="rounded-md border border-zinc-300 px-3 py-2 text-sm hover:border-zinc-900"
-                    onClick={() => void rate(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
+        <div className="mx-auto mt-10 max-w-2xl">
+          <FlipFlashcard
+            front={current.front}
+            back={current.back}
+            flipped={revealed}
+            onFlip={() => setRevealed((prev) => !prev)}
+            size="lg"
+          />
+          <div className="mt-8">
+            {revealed ? (
+              <div>
+                <p className="mb-3 text-sm text-muted-foreground">How confident are you?</p>
+                <div className="flex flex-wrap gap-2">
+                  {RATINGS.map(({ n, label }) => (
+                    <Button
+                      key={n}
+                      type="button"
+                      variant={n <= 2 ? "outline" : n === 3 ? "secondary" : "default"}
+                      onClick={() => void rate(n)}
+                    >
+                      {n} {label}
+                    </Button>
+                  ))}
+                </div>
               </div>
-              <p className="mt-2 text-xs text-zinc-500">1 = not at all confident, 5 = ready</p>
-            </>
-          ) : (
-            <button
-              type="button"
-              className="mt-6 rounded-md bg-zinc-900 px-4 py-2 text-sm text-white"
-              onClick={() => setRevealed(true)}
-            >
-              Reveal answer
-            </button>
-          )}
+            ) : (
+              <Button type="button" onClick={() => setRevealed(true)}>
+                Reveal answer
+              </Button>
+            )}
+          </div>
         </div>
       )}
-      {!current && total > 0 && <p className="mt-8 text-zinc-500">No cards left in this session.</p>}
+      {!current && total > 0 && (
+        <p className="mt-8 text-muted-foreground">No cards left in this session.</p>
+      )}
     </Shell>
   );
 }

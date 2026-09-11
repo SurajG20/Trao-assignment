@@ -13,7 +13,7 @@ describe("link ranking", () => {
     expect(rankLink("https://ex.com/about-us")).toBeGreaterThan(0);
   });
 
-  it("ranks same-origin links and follows relative URLs after cleaning", () => {
+  it("ranks same-origin links using anchor text after cleaning", () => {
     const { links } = cleanHtml(
       `<html><body>
         <a href="/careers">Jobs</a>
@@ -24,6 +24,28 @@ describe("link ranking", () => {
     );
     const ranked = uniqueRanked(links, "http://127.0.0.1:9/", 5);
     expect(ranked[0]?.url).toContain("/careers");
+  });
+});
+
+describe("html cleaning", () => {
+  it("keeps main copy and drops nav careers noise", () => {
+    const { text, meta } = cleanHtml(
+      `<html>
+        <head>
+          <meta name="description" content="Analytics for product teams." />
+          <script type="application/ld+json">{"@type":"Organization","name":"Acme","description":"We make analytics for product teams"}</script>
+        </head>
+        <body>
+          <nav><a href="/careers">Careers</a><a href="/login">Login</a></nav>
+          <main><p>We make analytics for product teams.</p></main>
+          <footer>Copyright</footer>
+        </body>
+      </html>`,
+      "https://acme.test/",
+    );
+    expect(text).toContain("We make analytics for product teams");
+    expect(text.toLowerCase()).not.toContain("login");
+    expect(meta.description).toContain("Analytics for product teams");
   });
 });
 

@@ -55,10 +55,23 @@ export type KitPayload = {
   coverage: { uncovered_requirement_ids: string[]; passes: number };
 };
 
+export type KitProgress = {
+  step?: string;
+  message?: string;
+  index?: number;
+  total?: number;
+  percent?: number;
+  meta?: {
+    pages_fetched?: number;
+    question_category?: string;
+    requirements_found?: number;
+  };
+};
+
 export type KitRecord = {
   id: string;
   status: KitStatus;
-  progress: { step?: string; message?: string };
+  progress: KitProgress;
   input: { jd: string; company_url: string; days: number };
   kit: KitPayload | null;
   itemState: Record<string, ItemOrigin>;

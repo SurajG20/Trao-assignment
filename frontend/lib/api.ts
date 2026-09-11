@@ -59,6 +59,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     }),
+  deleteKit: (id: string) =>
+    request<{ ok: boolean; id: string }>(`/api/kits/${id}`, { method: "DELETE" }),
   regenerate: (id: string, section: string) =>
     request<{ kit: import("./types").KitRecord }>(`/api/kits/${id}/regenerate`, {
       method: "POST",

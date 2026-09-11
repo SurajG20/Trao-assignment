@@ -1,7 +1,8 @@
-import type { Kit, Question } from "../schemas/kit.js";
+import type { Kit, Question, Requirement } from "../schemas/kit.js";
 import { validateKit } from "../schemas/kit.js";
 import { researchCompany } from "../retrieval/research.js";
 import { assertFetchableUrl } from "../retrieval/urlSafety.js";
+import { pageCorpus, type FetchedPage } from "../retrieval/fetchPage.js";
 import { extractRole } from "./extract.js";
 import { generateCompanyBrief } from "./brief.js";
 import {
@@ -13,13 +14,19 @@ import { uncoveredMustHaveIds, uncoveredRequirementIds } from "./coverage.js";
 import { allocateSchedule } from "./schedule.js";
 import { thinKitFromInput, type PipelineInput } from "./thinKit.js";
 import { env } from "../config/env.js";
+import {
+  PIPELINE_TOTAL,
+  pipelineProgress,
+  type ProgressFn,
+  type ProgressMeta,
+} from "./progress.js";
 
 export type { PipelineInput } from "./thinKit.js";
+export type { ProgressFn } from "./progress.js";
 export type PipelineResult = {
   kit: Kit;
   provenance: { failures: { url: string; code: string; message: string }[] };
 };
-export type ProgressFn = (step: string, message: string) => Promise<void> | void;
 
 const CATEGORIES = [
   "technical",
@@ -28,40 +35,124 @@ const CATEGORIES = [
   "company-fit",
 ] as const;
 
+function isHiringPage(page: FetchedPage) {
+  const hay = `${page.finalUrl} ${page.text}`.toLowerCase();
+  return /career|hiring|interview|handbook|job/.test(hay);
+}
+
+function isAboutPage(page: FetchedPage) {
+  const hay = `${page.finalUrl} ${page.text}`.toLowerCase();
+  return /about|mission|product|platform|what we do|company/.test(hay);
+}
+
+function requirementsForCategory(
+  category: (typeof CATEGORIES)[number],
+  requirements: Requirement[],
+  seniority: string,
+  hiringNotes: string,
+) {
+  if (category === "behavioural") {
+    return requirements.filter((r) => r.kind === "behavioural");
+  }
+  if (category === "technical") {
+    return requirements.filter((r) => r.kind === "technical" || r.kind === "domain");
+  }
+  if (category === "system-design") {
+    const senior = /senior|staff|principal|lead/i.test(seniority);
+    const design = /system design|architecture|take-home|design round/i.test(hiringNotes);
+    if (!senior && !design) return [];
+    return requirements.filter((r) => r.kind === "technical" || r.kind === "domain");
+  }
+  return requirements;
+}
+
 export async function runPipeline(
   input: PipelineInput,
   onProgress: ProgressFn = () => undefined,
 ): Promise<PipelineResult> {
   const days = Math.min(60, Math.max(1, input.days));
   const hasKey = Boolean(process.env.OPENROUTER_API_KEY || env.openRouterApiKey);
+  let meta: ProgressMeta = {};
 
-  await onProgress("extract", "Extracting requirements from the job description");
+  const report: ProgressFn = (step, message, extra) => {
+    const payload = pipelineProgress(step, message, extra?.index ?? 0, extra?.meta ?? meta);
+    return onProgress(payload.step, payload.message, {
+      index: payload.index,
+      total: payload.total,
+      percent: payload.percent,
+      meta: payload.meta,
+    });
+  };
+
+  await report("extract", "Extracting requirements from the job description", { index: 1, total: PIPELINE_TOTAL });
   const extracted = await extractRole(input.jd);
+  meta = { ...meta, requirements_found: extracted.requirements.length };
+  await report("extract", "Extracting requirements from the job description", {
+    index: 1,
+    total: PIPELINE_TOTAL,
+    meta,
+  });
+
+  if (!hasKey) {
+    await report("llm", "OPENROUTER_API_KEY missing; returning a description-only draft", {
+      index: 2,
+      total: PIPELINE_TOTAL,
+      meta,
+    });
+    const draft = thinKitFromInput({ ...input, days });
+    draft.role.title = extracted.title || draft.role.title;
+    draft.role.seniority = extracted.seniority;
+    draft.role.responsibilities = extracted.responsibilities;
+    draft.role.requirements = extracted.requirements;
+    draft.source.role = extracted.title;
+    draft.source.location = extracted.location;
+    draft.coverage = {
+      uncovered_requirement_ids: extracted.requirements.map((r) => r.id),
+      passes: 0,
+    };
+    return { kit: validateKit(draft), provenance: { failures: [] } };
+  }
 
   let homeText = "";
   let hiringNotes = "";
   const pagesUsed: string[] = [];
-  const pageDocs: { url: string; text: string }[] = [];
+  const pageDocs: { url: string; text: string; meta?: FetchedPage["meta"] }[] = [];
   const failures: { url: string; code: string; message: string }[] = [];
 
-  await onProgress("retrieve", "Fetching the company site");
+  await report("retrieve", "Fetching the company site", { index: 2, total: PIPELINE_TOTAL, meta });
   try {
     await assertFetchableUrl(input.company_url);
     const research = await researchCompany(input.company_url);
     failures.push(...research.failures);
-    if (research.home) {
-      homeText = research.home.text;
-      pagesUsed.push(research.home.finalUrl);
-      pageDocs.push({ url: research.home.finalUrl, text: research.home.text });
-    }
-    for (const page of research.pages) {
+    const allPages = [research.home, ...research.pages].filter(Boolean) as FetchedPage[];
+    for (const page of allPages) {
       pagesUsed.push(page.finalUrl);
-      pageDocs.push({ url: page.finalUrl, text: page.text });
-      hiringNotes += `\n${page.finalUrl}\n${page.text.slice(0, 3000)}`;
+      const entry = {
+        url: page.finalUrl,
+        text: pageCorpus(page, 4000),
+        meta: page.meta,
+      };
+      if (page === research.home || isAboutPage(page)) {
+        pageDocs.push(entry);
+        if (page === research.home) homeText = page.text;
+      }
+      if (isHiringPage(page)) {
+        hiringNotes += `\n${page.finalUrl}\n${pageCorpus(page, 3000)}`;
+      }
+    }
+    if (pageDocs.length === 0 && research.home) {
+      pageDocs.push({
+        url: research.home.finalUrl,
+        text: pageCorpus(research.home, 4000),
+        meta: research.home.meta,
+      });
+      homeText = research.home.text;
     }
     if (research.discussion.snippets.length) {
       hiringNotes += `\nPublic discussion:\n${research.discussion.snippets[0]}`;
     }
+    meta = { ...meta, pages_fetched: pagesUsed.length };
+    await report("retrieve", "Fetching the company site", { index: 2, total: PIPELINE_TOTAL, meta });
   } catch (err) {
     failures.push({
       url: input.company_url,
@@ -73,24 +164,11 @@ export async function runPipeline(
     });
   }
 
-  if (!hasKey) {
-    await onProgress("llm", "OPENROUTER_API_KEY missing; returning a description-only draft");
-    const draft = thinKitFromInput({ ...input, days });
-    draft.role.title = extracted.title || draft.role.title;
-    draft.role.seniority = extracted.seniority;
-    draft.role.responsibilities = extracted.responsibilities;
-    draft.role.requirements = extracted.requirements;
-    draft.source.pages_used = pagesUsed;
-    draft.source.role = extracted.title;
-    draft.source.location = extracted.location;
-    draft.coverage = {
-      uncovered_requirement_ids: extracted.requirements.map((r) => r.id),
-      passes: 0,
-    };
-    return { kit: validateKit(draft), provenance: { failures } };
-  }
-
-  await onProgress("brief", "Writing the company brief from retrieved pages");
+  await report("brief", "Writing the company brief from retrieved pages", {
+    index: 3,
+    total: PIPELINE_TOTAL,
+    meta,
+  });
   const company_brief = await generateCompanyBrief(pageDocs);
   if (!homeText && pageDocs.length === 0) {
     company_brief.summary =
@@ -101,33 +179,55 @@ export async function runPipeline(
   let nextId = 1;
   const hiringHint = hiringNotes.slice(0, 8000);
 
+  const questionIndex: Record<(typeof CATEGORIES)[number], number> = {
+    technical: 4,
+    behavioural: 5,
+    "system-design": 6,
+    "company-fit": 7,
+  };
+
   for (const category of CATEGORIES) {
-    await onProgress("questions", `Generating ${category} questions`);
-    const slice = extracted.requirements.filter((req) => {
-      if (category === "behavioural") return req.kind === "behavioural";
-      if (category === "technical") return req.kind === "technical" || req.kind === "domain";
-      return true;
+    meta = { ...meta, question_category: category };
+    await report("questions", `Generating ${category} questions`, {
+      index: questionIndex[category],
+      total: PIPELINE_TOTAL,
+      meta,
     });
+    const slice = requirementsForCategory(
+      category,
+      extracted.requirements,
+      extracted.seniority,
+      hiringHint,
+    );
     try {
       const generated = await generateQuestionsForCategory({
         category,
-        requirements: slice.length ? slice : extracted.requirements,
+        requirements: slice,
         jd: input.jd,
-        hiringNotes: hiringHint,
+        hiringNotes: category === "company-fit" || category === "system-design" ? hiringHint : "",
         existing: questions,
         nextId,
       });
       questions.push(...generated.questions);
       nextId = generated.nextId;
-    } catch {
-      // skip this category; coverage pass may fill gaps
+    } catch (err) {
+      failures.push({
+        url: `llm:${category}`,
+        code: "LLM_CATEGORY_FAILED",
+        message: err instanceof Error ? err.message : `Failed to generate ${category} questions`,
+      });
     }
+    await new Promise((r) => setTimeout(r, 600));
   }
 
   let passes = 1;
   let uncoveredMust = uncoveredMustHaveIds(extracted.requirements, questions);
+  await report("coverage", "Filling uncovered must-have requirements", {
+    index: 8,
+    total: PIPELINE_TOTAL,
+    meta,
+  });
   while (uncoveredMust.length && passes < 2) {
-    await onProgress("coverage", "Filling uncovered must-have requirements");
     const gaps = extracted.requirements.filter((r) => uncoveredMust.includes(r.id));
     try {
       const generated = await generateGapQuestions(
@@ -138,17 +238,26 @@ export async function runPipeline(
       );
       questions.push(...generated.questions);
       nextId = generated.nextId;
-    } catch {
+    } catch (err) {
+      failures.push({
+        url: "llm:coverage",
+        code: "LLM_CATEGORY_FAILED",
+        message: err instanceof Error ? err.message : "Coverage pass failed",
+      });
       break;
     }
     passes += 1;
     uncoveredMust = uncoveredMustHaveIds(extracted.requirements, questions);
   }
 
-  await onProgress("flashcards", "Creating flashcards");
+  await report("flashcards", "Creating flashcards", { index: 9, total: PIPELINE_TOTAL, meta });
   const flashcards = await generateFlashcards(extracted.requirements, questions);
 
-  await onProgress("schedule", "Allocating the study schedule");
+  await report("schedule", "Allocating the study schedule", {
+    index: 10,
+    total: PIPELINE_TOTAL,
+    meta,
+  });
   const schedule = allocateSchedule(questions, extracted.requirements, days);
 
   const kit: Kit = {

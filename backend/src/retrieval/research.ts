@@ -34,6 +34,13 @@ async function safeFetch(url: string, failures: SourceFailure[]) {
       });
       return null;
     }
+    if (page.text.trim().length < 80 && !page.meta.description) {
+      failures.push({
+        url,
+        code: "THIN_PAGE",
+        message: "Page had almost no readable content after cleaning",
+      });
+    }
     return page;
   } catch (err) {
     const mapped = failureFromFetch(url, err);
@@ -97,6 +104,7 @@ export async function searchPublicDiscussion(
   try {
     const page = await fetchPage(searchUrl);
     const urls = page.links
+      .map((link) => link.href)
       .filter((href) => href.startsWith("http") && !href.includes("duckduckgo.com"))
       .slice(0, 5);
     const snippets = page.text ? [page.text.slice(0, 2000)] : [];

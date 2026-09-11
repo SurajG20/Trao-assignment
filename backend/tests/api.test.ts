@@ -13,10 +13,10 @@ async function waitUntil(
   id: string,
   status: string,
 ) {
-  for (let i = 0; i < 40; i += 1) {
+  for (let i = 0; i < 80; i += 1) {
     const res = await agent.get(`/api/kits/${id}`);
     if (res.body.kit?.status === status) return res.body.kit;
-    await new Promise((r) => setTimeout(r, 50));
+    await new Promise((r) => setTimeout(r, 100));
   }
   throw new Error(`kit did not reach ${status}`);
 }
@@ -216,5 +216,37 @@ describe("HTTP APIs", () => {
       true,
     );
     expect(regen.body.kit.kit.schedule.days).toHaveLength(3);
+  });
+
+  it("deletes only the owner's kit", async () => {
+    const ada = request.agent(app);
+    await ada.post("/api/auth/register").send({
+      email: "ada@example.com",
+      password: "password12",
+    });
+    const created = await ada.post("/api/kits").send({
+      jd: "Role to delete",
+      company_url: "https://example.com",
+      days: 2,
+    });
+    const id = created.body.kit.id;
+
+    const bob = request.agent(app);
+    await bob.post("/api/auth/register").send({
+      email: "bob@example.com",
+      password: "password12",
+    });
+    const blocked = await bob.delete(`/api/kits/${id}`);
+    expect(blocked.status).toBe(404);
+
+    const removed = await ada.delete(`/api/kits/${id}`);
+    expect(removed.status).toBe(200);
+    expect(removed.body.ok).toBe(true);
+
+    const missing = await ada.get(`/api/kits/${id}`);
+    expect(missing.status).toBe(404);
+
+    const list = await ada.get("/api/kits");
+    expect(list.body.kits.some((k: { id: string }) => k.id === id)).toBe(false);
   });
 });

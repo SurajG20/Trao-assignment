@@ -5,6 +5,7 @@ import { KitRecord } from "../models/kit.js";
 import { appError } from "../errors.js";
 import { inputHash, requireAuth } from "../middleware/auth.js";
 import { runPipeline } from "../pipeline/run.js";
+import { PIPELINE_TOTAL, pipelineProgress } from "../pipeline/progress.js";
 import { regenerateSection } from "../pipeline/regenerate.js";
 import { kitSchema } from "../schemas/kit.js";
 
@@ -44,12 +45,19 @@ async function generateKit(id: string) {
     const record = await KitRecord.findById(id);
     if (!record) return;
     record.status = "running";
-    record.progress = { step: "start", message: "Generation started" };
+    record.progress = pipelineProgress("start", "Generation started", 0);
     record.error = undefined;
     await record.save();
 
-    const { kit, provenance } = await runPipeline(record.input, async (step, message) => {
-      await KitRecord.findByIdAndUpdate(id, { progress: { step, message } });
+    const { kit, provenance } = await runPipeline(record.input, async (step, message, extra) => {
+      await KitRecord.findByIdAndUpdate(id, {
+        progress: pipelineProgress(
+          step,
+          message,
+          extra?.index ?? 0,
+          extra?.meta,
+        ),
+      });
     });
 
     const itemState: Record<string, "generated"> = {};
@@ -61,14 +69,14 @@ async function generateKit(id: string) {
       kit,
       itemState,
       provenance,
-      progress: { step: "done", message: "Kit ready" },
+      progress: pipelineProgress("done", "Kit ready", PIPELINE_TOTAL),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Generation failed";
     await KitRecord.findByIdAndUpdate(id, {
       status: "failed",
       error: { code: "GENERATION_FAILED", message },
-      progress: { step: "failed", message },
+      progress: pipelineProgress("failed", message, PIPELINE_TOTAL),
     });
   } finally {
     generating.delete(id);
@@ -89,7 +97,7 @@ kitsRouter.post("/", async (req, res, next) => {
     if (existing) {
       if (existing.status === "failed") {
         existing.status = "queued";
-        existing.progress = { step: "queued", message: "Retrying" };
+        existing.progress = pipelineProgress("queued", "Retrying", 0);
         await existing.save();
         void generateKit(existing._id.toString());
       }
@@ -198,6 +206,27 @@ kitsRouter.get("/:id", async (req, res, next) => {
       return;
     }
     res.json({ kit: publicKit(kit) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+kitsRouter.delete("/:id", async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      next(appError(400, "INVALID_INPUT", "Invalid kit id"));
+      return;
+    }
+    const kit = await KitRecord.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!kit) {
+      next(appError(404, "NOT_FOUND", "Kit not found"));
+      return;
+    }
+    generating.delete(req.params.id);
+    res.json({ ok: true, id: kit._id });
   } catch (err) {
     next(err);
   }

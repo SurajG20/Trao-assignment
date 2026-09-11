@@ -21,6 +21,10 @@ const kitRecordSchema = new mongoose.Schema(
     progress: {
       step: { type: String, default: "queued" },
       message: { type: String, default: "Waiting to start" },
+      index: { type: Number, default: 0 },
+      total: { type: Number, default: 10 },
+      percent: { type: Number, default: 0 },
+      meta: { type: mongoose.Schema.Types.Mixed, default: {} },
     },
     input: {
       jd: { type: String, required: true },

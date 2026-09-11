@@ -5,6 +5,7 @@ import {
   type Requirement,
 } from "../schemas/kit.js";
 import { completeJson, wrapUntrusted } from "../llm/openrouter.js";
+import { EXTRACT_SYSTEM } from "./prompts.js";
 
 const extractedSchema = z.object({
   title: z.string().default(""),
@@ -91,17 +92,26 @@ function withIds(
   };
 }
 
+function hasLlm() {
+  return Boolean(process.env.OPENROUTER_API_KEY);
+}
+
 export async function extractRole(jd: string): Promise<ExtractedRole> {
   const fallback = withIds(heuristicExtract(jd));
+  if (!hasLlm()) return fallback;
   try {
     const parsed = await completeJson(
-      "Extract only facts present in the job description. Do not invent skills, years, or tools that are not written. Mark a requirement must if the posting says required/must, and nice if it says bonus/preferred/nice to have. kind is technical, behavioural, or domain.",
+      EXTRACT_SYSTEM,
       wrapUntrusted("JOB_DESCRIPTION", jd),
       (value) => extractedSchema.parse(value),
     );
-    if (parsed.requirements.length === 0) return fallback;
-    return withIds(parsed);
-  } catch {
+    const capped = {
+      ...parsed,
+      requirements: parsed.requirements.slice(0, 12),
+    };
+    return withIds(capped);
+  } catch (err) {
+    console.warn("extractRole LLM failed; using heuristic", err);
     return fallback;
   }
 }
