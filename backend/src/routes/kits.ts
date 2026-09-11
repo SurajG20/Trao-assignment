@@ -47,7 +47,7 @@ async function generateKit(id: string) {
     record.error = undefined;
     await record.save();
 
-    const kit = await runPipeline(record.input, async (step, message) => {
+    const { kit, provenance } = await runPipeline(record.input, async (step, message) => {
       await KitRecord.findByIdAndUpdate(id, { progress: { step, message } });
     });
 
@@ -59,6 +59,7 @@ async function generateKit(id: string) {
       status: "ready",
       kit,
       itemState,
+      provenance,
       progress: { step: "done", message: "Kit ready" },
     });
   } catch (err) {
