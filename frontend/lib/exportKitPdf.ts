@@ -157,16 +157,19 @@ function buildHtml(kit: KitPayload) {
 }
 
 export function exportKitPdf(kit: KitPayload) {
-  const html = buildHtml(kit);
-  const win = window.open("", "_blank", "noopener,noreferrer");
+  // Open synchronously on click — do not pass noopener; Chrome returns null and blocks export.
+  const win = window.open("about:blank", "_blank");
   if (!win) {
     window.alert("Allow pop-ups to export this kit as PDF.");
     return;
   }
+
+  const html = buildHtml(kit);
   win.document.open();
   win.document.write(html);
   win.document.close();
   win.focus();
+
   const print = () => {
     win.print();
     win.onafterprint = () => win.close();
