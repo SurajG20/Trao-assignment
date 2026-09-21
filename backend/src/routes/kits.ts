@@ -152,6 +152,45 @@ kitsRouter.get("/", async (req, res, next) => {
   }
 });
 
+kitsRouter.get("/:id/events", async (req, res, next) => {
+  try {
+    if (!mongoose.isValidObjectId(req.params.id)) {
+      next(appError(400, "INVALID_INPUT", "Invalid kit id"));
+      return;
+    }
+    const kit = await KitRecord.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+    if (!kit) {
+      next(appError(404, "NOT_FOUND", "Kit not found"));
+      return;
+    }
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    const send = async () => {
+      const latest = await KitRecord.findById(kit._id);
+      if (!latest) return false;
+      res.write(`data: ${JSON.stringify(publicKit(latest))}\n\n`);
+      return latest.status === "ready" || latest.status === "failed";
+    };
+    if (await send()) {
+      res.end();
+      return;
+    }
+    const timer = setInterval(async () => {
+      if (await send()) {
+        clearInterval(timer);
+        res.end();
+      }
+    }, 400);
+    req.on("close", () => clearInterval(timer));
+  } catch (err) {
+    next(err);
+  }
+});
+
 kitsRouter.get("/:id", async (req, res, next) => {
   try {
     if (!mongoose.isValidObjectId(req.params.id)) {

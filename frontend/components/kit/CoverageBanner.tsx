@@ -1,6 +1,8 @@
 import type { KitPayload } from "@/lib/types";
 import { mustHaveCoverage } from "@/lib/kitCoverage";
 
+export { mustHaveCoverage, questionsForRequirement } from "@/lib/kitCoverage";
+
 export function CoverageBanner({ kit }: { kit: KitPayload }) {
   const { covered, total } = mustHaveCoverage(kit);
   if (total === 0 || covered === total) return null;
