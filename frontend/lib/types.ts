@@ -1,5 +1,5 @@
 export type KitStatus = "queued" | "running" | "ready" | "failed";
-export type ItemOrigin = "generated" | "edited" | "pinned";
+type ItemOrigin = "generated" | "edited" | "pinned";
 export type QuestionCategory =
   | "technical"
   | "behavioural"

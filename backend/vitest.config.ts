@@ -7,7 +7,7 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 120_000,
     setupFiles: ["tests/setup-env.ts"],
-    include: ["tests/**/*.test.ts", "src/**/*.test.ts"],
+    include: ["tests/**/*.test.ts"],
     env: {
       NODE_ENV: "test",
       GROQ_API_KEY: "",

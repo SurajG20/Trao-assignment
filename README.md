@@ -1,5 +1,8 @@
 # Trao-assignment — AI Interview Prep Kit
 
+> **Take-home assessment** · Trao · 2025  
+> Flagship AI project: [GraphMind](https://github.com/SurajG20/ai-repo-workspace)
+
 Turn a pasted job description and company URL into a personalised interview kit: company brief, role breakdown, categorised questions, flashcards, and a day-by-day study schedule. Users can edit any part, regenerate individual sections, practise flashcards, and export the kit as PDF.
 
 ## Tech stack
@@ -89,7 +92,7 @@ For local fixture URLs, set `ALLOW_PRIVATE_URLS=true` in `.env`. In production (
 ```
 frontend/          Next.js UI (auth, kits, builder, practice)
 backend/
-  src/routes/      Express HTTP (auth, kits, practice, SSE progress)
+  src/routes/      Express HTTP (auth, kits, practice)
   src/pipeline/    Shared generation orchestrator + evaluate CLI
   src/retrieval/   Fetch, robots.txt, link ranking, public discussion search
   src/llm/         Groq client with 429 backoff and JSON repair
@@ -99,7 +102,7 @@ backend/
 
 Both `POST /api/kits` and `npm run evaluate` call the same `runPipeline()` function — no parallel implementation.
 
-Generation runs asynchronously after create (HTTP 202). Progress is stored on the kit document and exposed via polling and `GET /api/kits/:id/events` (SSE).
+Generation runs asynchronously after create (HTTP 202). Progress is stored on the kit document and exposed via polling.
 
 ## Retrieval approach
 
